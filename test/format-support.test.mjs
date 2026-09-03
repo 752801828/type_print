@@ -102,6 +102,15 @@ test('renders numeric object values in procurement detail rows', async () => {
   try { output = await renderTemplate(item.id, [{ '合同明细-采购明细': [{ '单价(含税)💻': { value: 240 } }] }]); const xml = new PizZip(await fs.readFile(outputFile(output.id, 'docx'))).file('word/document.xml').asText(); assert.match(xml, /240/); } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('derives missing procurement unit price from total and quantity', async () => {
+  const docx = new PizZip();
+  docx.file('[Content_Types].xml', `<Types xmlns='http://schemas.openxmlformats.org/package/2006/content-types'><Default Extension='rels' ContentType='application/vnd.openxmlformats-package.relationships+xml'/><Default Extension='xml' ContentType='application/xml'/><Override PartName='/word/document.xml' ContentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'/></Types>`);
+  docx.file('_rels/.rels', `<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/relationships'><Relationship Id='rId1' Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument' Target='word/document.xml'/></Relationships>`);
+  docx.file('word/document.xml', `<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:tbl><w:tr><w:tc><w:p><w:r><w:t>{#__合同明细_采购明细}{单价_含税___}|{实收数量__}|{总价_含税_}{/__合同明细_采购明细}</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:sectPr/></w:body></w:document>`);
+  const item = await saveTemplate('采购合同计算单价.docx', docx.generate({ type: 'nodebuffer' })); let output;
+  try { output = await renderTemplate(item.id, [{ '合同明细-采购明细': [{ 实收数量: 20, '总价(含税)': 4800 }] }]); const xml = new PizZip(await fs.readFile(outputFile(output.id, 'docx'))).file('word/document.xml').asText(); assert.match(xml, /240\|20\|4800/); } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('renders XLSX template preview with worksheet grid and merged cells', async () => {
   const xlsx = new PizZip();
   xlsx.file('xl/workbook.xml', `<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="报价单" r:id="rId1"/></sheets></workbook>`);
