@@ -22,7 +22,7 @@ const $ = id => document.getElementById(id);
 const text = value => Array.isArray(value) ? value.map(text).join('、') : value && typeof value === 'object' ? (value.text || value.name || (Array.isArray(value.value) ? text(value.value) : JSON.stringify(value))) : value == null ? '' : String(value);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
 const stripFieldMark = value => String(value ?? '').replace(/^(?:🔵|🟡|🔴|🟢|⚪)\s*/u, '').trim();
-const normalizeKey = value => stripFieldMark(value).replace(/[\s_\-：:（）()]/g, '').toLowerCase();
+const normalizeKey = value => stripFieldMark(value).replace(/[\u2600-\u27BF\u{1F300}-\u{1FAFF}]/gu, '').replace(/[\s_\-：:（）()·]/g, '').toLowerCase();
 const setStatus = message => { const node = $('status'); if (node) node.textContent = message; };
 const toast = async (message, type = 'info') => { try { await sdk?.bitable?.ui?.showToast?.({ toastType: type, message }); } catch {} };
 const isLayoutTemplate = item => ['.txt', '.layout', '.json'].includes(String(item?.extension || '').toLowerCase());
