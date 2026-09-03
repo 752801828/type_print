@@ -32,6 +32,8 @@ test('batch picker follows current view record and field order', async () => {
   assert.match(source, /item\.marker === '#' && fieldMatchesTemplate\(field\.name, item\.name\)/);
   assert.match(source, /fallbackRecordField = \(field, record\)/);
   assert.match(source, /for \(const target of \[record, recordId\]\)/);
+  assert.match(source, /table\?\.getCellValue\?\.\(field\.id, recordId\)/);
+  assert.match(source, /schema\.table\.getCellValue\?\.\(field\.id, id\)/);
   assert.match(source, /\\u\{1F300\}-\\u\{1FAFF\}/);
   assert.match(source, /field\.dependencies\?\.length \|\| isTemplateLoopField\(field\)/);
   assert.match(source, /await readCurrentRecord\(true\); await toast\('模板已保存/);
