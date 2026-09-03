@@ -58,7 +58,7 @@ async function readLinkedRows(raw, bitable, fallbackTableId = '') {
     }));
   } catch { return []; }
 }
-const matchingTemplateLoops = field => (state.selectedTemplate?.fields || []).filter(item => { if (item.marker !== '#') return false; return templateNames(item.name).some(candidate => { const templateName = normalizeKey(candidate); const fieldName = normalizeKey(field.name); return templateName === fieldName || (fieldName.length >= 2 && templateName.includes(fieldName)); }); });
+const matchingTemplateLoops = field => (state.selectedTemplate?.fields || []).filter(item => item.marker === '#' && fieldMatchesTemplate(field.name, item.name));
 const isTemplateLoopField = field => matchingTemplateLoops(field).length > 0;
 async function readRecord(id, table, bitable) { let record; try { record = await table.getRecordById(id); } catch {} const entries = await Promise.all(state.fields.map(async field => { const valueTask = readField(field, id, record); const linkedTableId = field.relationTableId || field.dependencies?.find(item => item.relationTableId)?.relationTableId || ''; const linkedTask = linkedTableId || field.dependencies?.length || isTemplateLoopField(field) ? readRawField(field, id, record).then(raw => readLinkedRows(raw, bitable, linkedTableId)) : Promise.resolve([]); return { field, value: await valueTask, linked: await linkedTask }; })); const fields = {}; const loops = {}; for (const { field, value, linked } of entries) { fields[field.id] = value; if (linked.length) { loops[field.name] = linked; loops[stripFieldMark(field.name)] = linked; for (const templateField of matchingTemplateLoops(field)) loops[templateField.name] = linked; } } return { id, fields, loops }; }
 
