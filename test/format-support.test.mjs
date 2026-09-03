@@ -55,3 +55,13 @@ test('renders filled Office record previews as HTML', async () => {
   const xlsxItem = await saveTemplate('preview.xlsx', xlsx.generate({ type: 'nodebuffer' }));
   try { const docxPreview = await (await import('../lib/template-store.mjs')).previewRecord(docxItem.id, { 客户: '张三' }); assert.equal(docxPreview.kind, 'html'); assert.match(docxPreview.html, /张三/); const xlsxPreview = await (await import('../lib/template-store.mjs')).previewRecord(xlsxItem.id, { 编号: 'A-100' }); assert.equal(xlsxPreview.kind, 'html'); assert.match(xlsxPreview.html, /A-100/); } finally { await removeTemplate(docxItem.id); await removeTemplate(xlsxItem.id); }
 });
+
+test('renders XLSX template preview with worksheet grid and merged cells', async () => {
+  const xlsx = new PizZip();
+  xlsx.file('xl/workbook.xml', `<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="报价单" r:id="rId1"/></sheets></workbook>`);
+  xlsx.file('xl/_rels/workbook.xml.rels', `<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>`);
+  xlsx.file('xl/styles.xml', `<styleSheet><fonts count="1"><font><b/><sz val="12"/></font></fonts><fills count="1"><fill><patternFill patternType="solid"><fgColor rgb="FFF2CC"/></patternFill></fill></fills><borders count="1"><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/></border></borders><cellXfs count="1"><xf fontId="0" fillId="0" borderId="0"><alignment horizontal="center"/></xf></cellXfs></styleSheet>`);
+  xlsx.file('xl/worksheets/sheet1.xml', `<worksheet><cols><col min="1" max="1" width="18"/><col min="2" max="2" width="24"/></cols><sheetData><row r="1" ht="28"><c r="A1" s="0" t="inlineStr"><is><t>报价单标题</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>客户</t></is></c><c r="B2" t="inlineStr"><is><t>{客户}</t></is></c></row></sheetData><mergeCells><mergeCell ref="A1:B1"/></mergeCells></worksheet>`);
+  const item = await saveTemplate('styled-preview.xlsx', xlsx.generate({ type: 'nodebuffer' }));
+  try { const preview = await previewTemplate(item.id); assert.equal(preview.kind, 'html'); assert.match(preview.html, /报价单/); assert.match(preview.html, /colspan="2"/); assert.match(preview.html, /width:133\.2px/); assert.match(preview.html, /background:#F2CC|background:#fff2cc/i); assert.match(preview.html, />A<\/th>/); assert.match(preview.html, /row-number/); } finally { await removeTemplate(item.id); }
+});

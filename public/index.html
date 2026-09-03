@@ -7,11 +7,11 @@
 <body>
   <div class="app-shell menu-collapsed" id="appShell">
     <aside class="library-sidebar">
-      <div class="search-row"><input placeholder="搜索模板" aria-label="搜索模板"><button aria-label="新增" id="addTemplate">＋</button></div>
+      <div class="search-row"><input placeholder="搜索模板" aria-label="搜索模板"></div>
       <div class="side-heading">记录模板 <button class="info-dot" id="recordTemplateHelp" title="使用指定记录作为数据源。支持批量模式。可用「关联字段」数据制作明细表。记录模板支持自动化功能。" aria-label="记录模板说明">i</button><b>⌄</b></div>
       <div id="categoryList" class="category-list"><div class="side-empty">暂无模板</div></div>
       <div class="side-divider"></div><div class="side-heading view-heading">视图模板 <span>ⓘ</span><b>⌄</b></div><div class="no-view">暂无模板</div>
-      <button class="create-btn" id="createTemplate">＋　创建模板</button>
+      <button class="create-btn" id="createTemplate" hidden>＋　创建模板</button>
     </aside>
     <main class="content">
       <div class="content-toolbar"><div class="crumb"><button class="menu-pill" id="menuToggle"><span class="line-icon menu-icon"></span>菜单</button><span class="type-pill blue">记录</span><span class="type-pill green" id="templateType">DOCX</span><strong>排版打印</strong><span class="edit-mark">✎</span></div><div class="toolbar-actions"><button><span class="line-icon more-icon"></span>更多</button><button><span class="line-icon export-icon"></span>导出</button><button class="generate-top" id="generateTop">生成文件</button></div><button class="batch-link" id="batchMode">进入批量模式</button></div>
