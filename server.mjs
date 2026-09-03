@@ -10,6 +10,7 @@ const publicDir = path.join(here, 'public');
 const sdkEntry = createRequire(import.meta.url).resolve('@lark-base-open/js-sdk');
 const sdkDir = path.dirname(sdkEntry);
 const port = Number(process.env.PORT || 4318);
+const host = process.env.HOST || '0.0.0.0';
 const build = 'feiye-independent';
 const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.mjs':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.txt':'text/plain; charset=utf-8', '.layout':'application/json; charset=utf-8', '.svg':'image/svg+xml', '.doc':'application/msword', '.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xls':'application/vnd.ms-excel', '.pdf':'application/pdf', '.zip':'application/zip' };
 
@@ -72,4 +73,4 @@ const server = http.createServer(async (req, res) => {
   } catch (error) { return json(res, 400, { error: error.message || '请求失败' }); }
 });
 
-server.listen(port, '0.0.0.0', () => console.log(`飞页已启动：http://localhost:${port}`));
+server.listen(port, host, () => console.log(`飞页已启动：http://${host}:${port}`));
