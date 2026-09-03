@@ -15,9 +15,13 @@ test('batch picker follows current view record and field order', async () => {
   assert.match(source, /selectionRecordIds\(current\)\.join\(','\)/);
   assert.match(source, /const sameScope = previous\?\.tableId === tableId/);
   assert.match(source, /linkedSchemaCache\.get\(tableId\)/);
+  assert.match(source, /relationItems\.flatMap/);
+  assert.match(source, /item\?\.record_ids/);
   assert.match(source, /Promise\.all\(state\.fields\.map\(async field/);
   assert.doesNotMatch(source, /queuedRead/);
-  assert.match(source, /const isTemplateLoopField = field/);
+  assert.match(source, /const matchingTemplateLoops = field/);
+  assert.match(source, /templateName\.includes\(fieldName\)/);
+  assert.match(source, /loops\[templateField\.name\] = linked/);
   assert.match(source, /field\.dependencies\?\.length \|\| isTemplateLoopField\(field\)/);
   assert.match(source, /await readCurrentRecord\(true\); await toast\('模板已保存/);
   const openBatch = source.slice(source.indexOf('const openBatchDialog'), source.indexOf("$('createTemplate')"));
