@@ -32,32 +32,33 @@ const serve = async (req, res, pathname) => {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const pathname = url.pathname === '/feishu' ? '/' : url.pathname.startsWith('/feishu/') ? url.pathname.slice('/feishu'.length) : url.pathname;
   try {
-    if (url.pathname === '/api/health' && req.method === 'GET') return json(res, 200, { ok: true, name: '排版打印 · 飞书扩展', port, build });
-    if (url.pathname === '/api/templates' && req.method === 'GET') return json(res, 200, { templates: await listTemplates({ baseId: url.searchParams.get('baseId') || '', tableId: url.searchParams.get('tableId') || '' }) });
-    if (url.pathname === '/api/templates' && req.method === 'POST') {
+    if (pathname === '/api/health' && req.method === 'GET') return json(res, 200, { ok: true, name: '排版打印 · 飞书扩展', port, build });
+    if (pathname === '/api/templates' && req.method === 'GET') return json(res, 200, { templates: await listTemplates({ baseId: url.searchParams.get('baseId') || '', tableId: url.searchParams.get('tableId') || '' }) });
+    if (pathname === '/api/templates' && req.method === 'POST') {
       let fileName = req.headers['x-file-name'] || 'template.docx';
       try { fileName = decodeURIComponent(fileName); } catch {}
       const header = name => { const value = req.headers[name] || ''; try { return decodeURIComponent(value); } catch { return value; } };
       const item = await saveTemplate(fileName, await body(req), { baseId: header('x-base-id'), tableId: header('x-table-id'), viewId: header('x-view-id'), baseName: header('x-base-name'), tableName: header('x-table-name') });
       return json(res, 201, { template: item });
     }
-    const templateMatch = url.pathname.match(/^\/api\/templates\/([\w-]+)$/);
+    const templateMatch = pathname.match(/^\/api\/templates\/([\w-]+)$/);
     if (templateMatch && req.method === 'PATCH') { const input = JSON.parse((await body(req, 64 * 1024)).toString('utf8')); return json(res, 200, { template: await renameTemplate(templateMatch[1], input.name) }); }
     if (templateMatch && req.method === 'DELETE') return json(res, 200, { deleted: await removeTemplate(templateMatch[1]) });
-    const templateFileMatch = url.pathname.match(/^\/api\/templates\/([\w-]+)\/file$/);
+    const templateFileMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/file$/);
     if (templateFileMatch && req.method === 'GET') {
       const templates = await listTemplates(); const item = templates.find(entry => entry.id === templateFileMatch[1]);
       if (!item) return json(res, 404, { error: 'TEMPLATE_NOT_FOUND' });
       const extension = item.extension || path.extname(item.fileName); const file = await fs.readFile(templateFile(item.id, extension)); res.writeHead(200, { 'content-type': mime[extension] || 'application/octet-stream', 'content-disposition': `inline; filename="${encodeURIComponent(item.name)}"`, 'cache-control': 'no-store' }); return res.end(file);
     }
-    const templatePreviewMatch = url.pathname.match(/^\/api\/templates\/([\w-]+)\/preview$/);
+    const templatePreviewMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/preview$/);
     if (templatePreviewMatch && req.method === 'GET') return json(res, 200, await previewTemplate(templatePreviewMatch[1]));
-    if (url.pathname === '/api/generate-docx' && req.method === 'POST') {
+    if (pathname === '/api/generate-docx' && req.method === 'POST') {
       const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8'));
       return json(res, 201, { output: await renderTemplate(input.templateId, input.records, input.outputFormat) });
     }
-    const outputMatch = url.pathname.match(/^\/api\/outputs\/([\w-]+)\/download$/);
+    const outputMatch = pathname.match(/^\/api\/outputs\/([\w-]+)\/download$/);
     if (outputMatch && req.method === 'GET') {
       let extension = 'docx'; let file;
       for (const candidate of ['doc', 'docx', 'xlsx', 'xls', 'pdf', 'zip']) { try { file = await fs.readFile(outputFile(outputMatch[1], candidate)); extension = candidate; break; } catch {} }
@@ -66,8 +67,8 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': type, 'content-disposition': `attachment; filename="feiye-${outputMatch[1]}.${extension}"`, 'cache-control': 'no-store' });
       return res.end(file);
     }
-    if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'NOT_FOUND' });
-    return serve(req, res, url.pathname);
+    if (pathname.startsWith('/api/')) return json(res, 404, { error: 'NOT_FOUND' });
+    return serve(req, res, pathname);
   } catch (error) { return json(res, 400, { error: error.message || '请求失败' }); }
 });
 

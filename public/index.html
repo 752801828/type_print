@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>排版打印</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/feishu/styles.css">
 </head>
 <body>
   <div class="app-shell menu-collapsed" id="appShell">
@@ -38,6 +38,6 @@
   <div class="field-suggest" id="fieldSuggest" hidden></div>
   <dialog class="preview-dialog" id="previewDialog"><button class="dialog-close" id="closePreview">×</button><h2 id="previewTitle">模板预览</h2><div id="previewMeta" class="preview-meta"></div><iframe id="previewFrame" class="preview-frame" hidden></iframe><div id="previewLayout" class="preview-layout" hidden></div><pre id="previewText" class="preview-text" hidden></pre><div id="previewFields" class="preview-fields"></div><a id="downloadPreview" class="preview-download" href="#" download>下载原文件</a></dialog>
   <dialog class="batch-dialog" id="batchDialog"><button class="dialog-close" id="closeBatch">×</button><h2>选择多维表记录</h2><div class="batch-rule"><p>选择单条：单击单元格，即可选中某条记录。</p><p>勾选多条：可进入批量模式，预览多条记录数据。</p></div><div class="batch-toolbar"><details class="batch-column-picker" id="batchColumnPicker"><summary id="batchColumnSummary">显示 4 个字段</summary><div class="batch-column-options" id="batchColumnOptions"></div></details></div><div class="batch-table-wrap"><table class="batch-table"><thead id="batchHead"></thead><tbody id="batchBody"></tbody></table></div><footer class="batch-footer"><span id="batchCount">已选 0 / 0</span><button id="clearBatch">取消选择</button><nav class="batch-pagination" aria-label="记录分页"><button id="batchPrev" aria-label="上一页">‹</button><span id="batchPage">1</span><button id="batchNext" aria-label="下一页">›</button><select id="batchPageSize" aria-label="每页记录数"><option value="10">10 条/页</option><option value="20">20 条/页</option><option value="50">50 条/页</option><option value="100">100 条/页</option><option value="200">200 条/页</option></select></nav><button id="cancelBatch">取消</button><button class="dialog-primary" id="confirmBatch">确定</button></footer></dialog>
-  <script type="module" src="/app.js"></script>
+  <script type="module" src="/feishu/app.js"></script>
 </body>
 </html>
