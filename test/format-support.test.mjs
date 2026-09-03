@@ -80,6 +80,19 @@ test('renders filled Office record previews as HTML', async () => {
   try { const docxPreview = await (await import('../lib/template-store.mjs')).previewRecord(docxItem.id, { 客户: '张三' }); assert.equal(docxPreview.kind, 'html'); assert.match(docxPreview.html, /张三/); const xlsxPreview = await (await import('../lib/template-store.mjs')).previewRecord(xlsxItem.id, { 编号: 'A-100' }); assert.equal(xlsxPreview.kind, 'html'); assert.match(xlsxPreview.html, /A-100/); } finally { await removeTemplate(docxItem.id); await removeTemplate(xlsxItem.id); }
 });
 
+test('applies procurement template special mappings', async () => {
+  const docx = new PizZip();
+  docx.file('[Content_Types].xml', `<Types xmlns='http://schemas.openxmlformats.org/package/2006/content-types'><Default Extension='rels' ContentType='application/vnd.openxmlformats-package.relationships+xml'/><Default Extension='xml' ContentType='application/xml'/><Override PartName='/word/document.xml' ContentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'/></Types>`);
+  docx.file('_rels/.rels', `<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/relationships'><Relationship Id='rId1' Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument' Target='word/document.xml'/></Relationships>`);
+  docx.file('word/document.xml', `<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:p><w:r><w:t>{__SKU总数}|{合同合计金额_大写_}|{__合同创建时间}</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>{#__合同明细_采购明细}{__开票品名}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>{SKU__}|{单价_含税___}|{实收数量__}|{总价_含税_}{/__合同明细_采购明细}</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:sectPr/></w:body></w:document>`);
+  const item = await saveTemplate('采购合同（含税）-采购明细.docx', docx.generate({ type: 'nodebuffer' })); let output;
+  try {
+    output = await renderTemplate(item.id, [{ 合同合计金额: 12800, '合同明细-采购明细': [{ 开票品名: '无线键盘', SKU: 'KB-002', '单价(含税)': 240, 实收数量: 20, '总价(含税)': 4800 }, { 开票品名: '显示器', SKU: 'MN-003', '单价(含税)': 800, 实收数量: 10, '总价(含税)': 8000 }] }]);
+    const xml = new PizZip(await fs.readFile(outputFile(output.id, 'docx'))).file('word/document.xml').asText();
+    assert.match(xml, /KB-002/); assert.match(xml, /MN-003/); assert.match(xml, />30\|/); assert.match(xml, /壹万贰仟捌佰元整/); assert.match(xml, new RegExp(`${new Date().getFullYear()}年`));
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('renders XLSX template preview with worksheet grid and merged cells', async () => {
   const xlsx = new PizZip();
   xlsx.file('xl/workbook.xml', `<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="报价单" r:id="rId1"/></sheets></workbook>`);
