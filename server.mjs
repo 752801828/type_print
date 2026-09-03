@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { listTemplates, saveTemplate, renameTemplate, removeTemplate, renderTemplate, previewTemplate, templateFile, outputFile } from './lib/template-store.mjs';
+import { listTemplates, saveTemplate, renameTemplate, removeTemplate, renderTemplate, previewTemplate, previewRecord, templateFile, outputFile } from './lib/template-store.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, 'public');
@@ -55,6 +55,8 @@ const server = http.createServer(async (req, res) => {
     }
     const templatePreviewMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/preview$/);
     if (templatePreviewMatch && req.method === 'GET') return json(res, 200, await previewTemplate(templatePreviewMatch[1]));
+    const recordPreviewMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/record-preview$/);
+    if (recordPreviewMatch && req.method === 'POST') { const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8')); return json(res, 200, await previewRecord(recordPreviewMatch[1], input.record || {})); }
     if (pathname === '/api/generate-docx' && req.method === 'POST') {
       const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8'));
       return json(res, 201, { output: await renderTemplate(input.templateId, input.records, input.outputFormat) });
