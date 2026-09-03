@@ -16,6 +16,10 @@ test('batch picker follows current view record and field order', async () => {
   assert.match(source, /const sameScope = previous\?\.tableId === tableId/);
   assert.match(source, /linkedSchemaCache\.get\(tableId\)/);
   assert.match(source, /relationItems\.flatMap/);
+  assert.match(source, /rawRecord = await schema\.table\.getRecordById/);
+  assert.match(source, /templateField\.name\] = row\[candidate\.name\]/);
+  assert.match(source, /const templateFieldDiagnostics = \(\)/);
+  assert.match(source, /字段 ID/);
   assert.match(source, /item\?\.record_ids/);
   assert.match(source, /Promise\.all\(state\.fields\.map\(async field/);
   assert.doesNotMatch(source, /queuedRead/);
