@@ -26,6 +26,8 @@ test('batch picker follows current view record and field order', async () => {
   assert.match(source, /const matchingTemplateLoops = field/);
   assert.match(source, /templateName\.includes\(fieldName\)/);
   assert.match(source, /loops\[templateField\.name\] = linked/);
+  assert.match(source, /单价_含税___/);
+  assert.match(source, /fieldMatchesTemplate/);
   assert.match(source, /field\.dependencies\?\.length \|\| isTemplateLoopField\(field\)/);
   assert.match(source, /await readCurrentRecord\(true\); await toast\('模板已保存/);
   const openBatch = source.slice(source.indexOf('const openBatchDialog'), source.indexOf("$('createTemplate')"));

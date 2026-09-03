@@ -51,14 +51,14 @@ async function readLinkedRows(raw, bitable, fallbackTableId = '') {
       const row = {};
       for (const [field, value] of entries) { row[field.name] = value; row[stripFieldMark(field.name)] ??= value; }
       for (const templateField of state.selectedTemplate?.fields || []) if (templateField.marker !== '#') {
-        const candidate = schema.fields.find(field => normalizeKey(field.name) === normalizeKey(templateField.name));
+        const candidate = schema.fields.find(field => fieldMatchesTemplate(field.name, templateField.name));
         if (candidate && row[templateField.name] === undefined) row[templateField.name] = row[candidate.name] ?? '';
       }
       return row;
     }));
   } catch { return []; }
 }
-const matchingTemplateLoops = field => (state.selectedTemplate?.fields || []).filter(item => { if (item.marker !== '#') return false; const templateName = normalizeKey(item.name); const fieldName = normalizeKey(field.name); return templateName === fieldName || (fieldName.length >= 2 && templateName.includes(fieldName)); });
+const matchingTemplateLoops = field => (state.selectedTemplate?.fields || []).filter(item => { if (item.marker !== '#') return false; return templateNames(item.name).some(candidate => { const templateName = normalizeKey(candidate); const fieldName = normalizeKey(field.name); return templateName === fieldName || (fieldName.length >= 2 && templateName.includes(fieldName)); }); });
 const isTemplateLoopField = field => matchingTemplateLoops(field).length > 0;
 async function readRecord(id, table, bitable) { let record; try { record = await table.getRecordById(id); } catch {} const entries = await Promise.all(state.fields.map(async field => { const valueTask = readField(field, id, record); const linkedTableId = field.relationTableId || field.dependencies?.find(item => item.relationTableId)?.relationTableId || ''; const linkedTask = linkedTableId || field.dependencies?.length || isTemplateLoopField(field) ? readRawField(field, id, record).then(raw => readLinkedRows(raw, bitable, linkedTableId)) : Promise.resolve([]); return { field, value: await valueTask, linked: await linkedTask }; })); const fields = {}; const loops = {}; for (const { field, value, linked } of entries) { fields[field.id] = value; if (linked.length) { loops[field.name] = linked; loops[stripFieldMark(field.name)] = linked; for (const templateField of matchingTemplateLoops(field)) loops[templateField.name] = linked; } } return { id, fields, loops }; }
 
@@ -102,7 +102,10 @@ async function loadTemplates() { const query = state.context?.tableId ? `?baseId
 const layoutText = value => Array.isArray(value) ? value.map(layoutText).join('') : value && typeof value === 'object' ? (value.text || '') : String(value || '');
 const cleanLayoutName = stripFieldMark;
 const matchingValue = (object, key) => { if (!object || typeof object !== 'object') return undefined; if (Object.hasOwn(object, key)) return object[key]; const normalized = normalizeKey(key); const match = Object.keys(object).find(candidate => normalizeKey(candidate) === normalized); return match === undefined ? undefined : object[match]; };
-const recordScope = record => { const values = {}; for (const field of state.fields) { const value = text(record.fields[field.id]); values[field.name] = value; values[stripFieldMark(field.name)] ??= value; } values['表格名'] = state.context?.tableName || ''; values['打印时间'] = new Date().toLocaleString('zh-CN'); for (const [name, rows] of Object.entries(record.loops || {})) { values[name] = rows; values[stripFieldMark(name)] ??= rows; } for (const field of state.selectedTemplate?.fields || []) if (matchingValue(values, field.name) === undefined) values[field.name] = field.marker === '#' ? [] : ''; return values; };
+const templateFieldAliases = { '__合同编号': ['合同编号'], '__供应商': ['供应商'], '__合同明细_采购明细': ['合同明细', '采购明细', '合同明细采购明细'], '__开票品名': ['开票品名'], 'SKU__': ['SKU'], '单价_含税___': ['单价（含税）', '单价(含税)', '含税单价'], '实收数量__': ['实收数量', '数量'], '总价_含税_': ['总价（含税）', '总价(含税)', '含税总价'], '__产品金额': ['产品金额'], '产品金额_大写_': ['产品金额（大写）', '产品金额(大写)'], '__产品运输费用': ['产品运输费用'], '产品运输费用_大写_': ['产品运输费用（大写）', '产品运输费用(大写)'], '__合同合计金额': ['合同合计金额'], '合同合计金额_大写_': ['合同合计金额（大写）', '合同合计金额(大写)'], '__采购合同': ['采购合同'], '__SKU种类': ['SKU种类'], '__SKU总数': ['SKU总数'], '__合同创建时间': ['合同创建时间'] };
+const templateNames = name => [String(name || ''), ...(templateFieldAliases[String(name || '')] || [])];
+const fieldMatchesTemplate = (fieldName, templateName) => templateNames(templateName).some(candidate => normalizeKey(candidate) === normalizeKey(fieldName));
+const recordScope = record => { const values = {}; for (const field of state.fields) { const value = text(record.fields[field.id]); values[field.name] = value; values[stripFieldMark(field.name)] ??= value; } for (const templateField of state.selectedTemplate?.fields || []) if (templateField.marker !== '#') { const sourceField = state.fields.find(field => fieldMatchesTemplate(field.name, templateField.name)); if (sourceField) values[templateField.name] = text(record.fields[sourceField.id]); } values['表格名'] = state.context?.tableName || ''; values['打印时间'] = new Date().toLocaleString('zh-CN'); for (const [name, rows] of Object.entries(record.loops || {})) { values[name] = rows; values[stripFieldMark(name)] ??= rows; } for (const field of state.selectedTemplate?.fields || []) if (matchingValue(values, field.name) === undefined) values[field.name] = field.marker === '#' ? [] : ''; return values; };
 const selectionRecordIds = selection => { const primary = selection?.recordId || selection?.record_id; const extra = selection?.recordIds || selection?.record_ids || selection?.recordIdList || selection?.record_id_list; return [...new Set([primary, ...(Array.isArray(extra) ? extra : [])].filter(Boolean).map(String))]; };
 const currentReadRecordIds = (selection, selectedIds) => { const current = selectionRecordIds(selection); return current.length ? current : (selectedIds || []).filter(Boolean).map(String); };
 const layoutVariableValue = (names, scope, rowContext) => { const path = (names || []).map(cleanLayoutName); if (scope === null) return `[${path.join(' / ')}]`; if (path[0] === '#') return String((rowContext?.index ?? 0) + 1); if (rowContext && normalizeKey(path[0]) === normalizeKey(rowContext.root)) return text(matchingValue(rowContext.item, path.at(-1))); let value = matchingValue(scope, path[0]); for (const key of path.slice(1)) value = matchingValue(value, key); return text(value); };
@@ -157,7 +160,7 @@ async function openRecordPreview(record) { if (!state.selectedTemplate) return t
 const templateFieldDiagnostics = () => {
   const fields = state.fields || []; const all = fields.flatMap(field => [field, ...(field.dependencies || [])]);
   return (state.selectedTemplate?.fields || []).map(templateField => {
-    const name = normalizeKey(templateField.name); const matched = templateField.marker === '#' ? fields.find(field => { const fieldName = normalizeKey(field.name); return fieldName === name || (fieldName.length >= 2 && name.includes(fieldName)); }) : all.find(field => normalizeKey(field.name) === name);
+    const matched = templateField.marker === '#' ? fields.find(field => matchingTemplateLoops(field).some(item => item.name === templateField.name)) : all.find(field => fieldMatchesTemplate(field.name, templateField.name));
     return { ...templateField, matched, fieldId: matched?.id || '', relationTableId: matched?.relationTableId || '' };
   });
 };
