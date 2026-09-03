@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import fs from 'node:fs/promises';
+
+test('batch picker follows current view record and field order', async () => {
+  const source = await fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(source, /getVisibleRecordIdList/);
+  assert.match(source, /getVisibleFieldIdList/);
+  assert.match(source, /batchColumnIds = state\.viewFields\.slice\(0, 4\)/);
+  assert.match(source, /batchPageSize = Number/);
+  assert.match(source, /batchRecords\.slice\(start, start \+ batchPageSize\)/);
+  assert.match(source, /readBatchPreviewRecord/);
+  assert.match(source, /const selectionRecordIds = selection/);
+  assert.match(source, /currentReadRecordIds\(selection, selected\)/);
+  assert.match(source, /selectionRecordIds\(current\)\.join\(','\)/);
+  assert.match(source, /const sameScope = previous\?\.tableId === tableId/);
+  assert.match(source, /linkedSchemaCache\.get\(tableId\)/);
+  assert.match(source, /Promise\.all\(state\.fields\.map\(async field/);
+  assert.doesNotMatch(source, /queuedRead/);
+  assert.match(source, /const isTemplateLoopField = field/);
+  assert.match(source, /field\.dependencies\?\.length \|\| isTemplateLoopField\(field\)/);
+  assert.match(source, /await readCurrentRecord\(true\); await toast\('模板已保存/);
+  const openBatch = source.slice(source.indexOf('const openBatchDialog'), source.indexOf("$('createTemplate')"));
+  assert.ok(openBatch.indexOf("$('batchDialog').showModal()") < openBatch.indexOf('await getBatchRecordIds()'));
+});

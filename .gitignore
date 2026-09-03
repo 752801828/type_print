@@ -1,0 +1,7 @@
+node_modules/
+*.log
+data/templates/*
+data/templates.json
+data/outputs/*
+!data/templates/.gitkeep
+!data/outputs/.gitkeep
