@@ -57,6 +57,18 @@ test('fills namespace-prefixed XLSX string cells stored in v nodes', async () =>
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('expands XLSX loops spanning multiple template rows', async () => {
+  const zip = new PizZip();
+  zip.file('xl/workbook.xml', '<workbook/>');
+  zip.file('xl/worksheets/sheet1.xml', '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" t="str"><v>{#采购明细}</v></c></row><row r="2"><c r="A2" t="str"><v>品名：{产品名称}</v></c></row><row r="3"><c r="A3" t="str"><v>数量：{数量}</v></c></row><row r="4"><c r="A4" t="str"><v>{/采购明细}</v></c></row><row r="5"><c r="A5" t="str"><v>结束</v></c></row></sheetData></worksheet>');
+  const item = await saveTemplate('multi-row-loop.xlsx', zip.generate({ type: 'nodebuffer' })); let output;
+  try {
+    output = await renderTemplate(item.id, [{ 采购明细: [{ 产品名称: '钢笔', 数量: 3 }, { 产品名称: '文件夹', 数量: 5 }] }]);
+    const sheet = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText();
+    assert.match(sheet, /品名：钢笔/); assert.match(sheet, /数量：3/); assert.match(sheet, /品名：文件夹/); assert.match(sheet, /数量：5/); assert.match(sheet, /结束/);
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('renders filled Office record previews as HTML', async () => {
   const docx = new PizZip();
   docx.file('[Content_Types].xml', `<Types xmlns='http://schemas.openxmlformats.org/package/2006/content-types'><Default Extension='rels' ContentType='application/vnd.openxmlformats-package.relationships+xml'/><Default Extension='xml' ContentType='application/xml'/><Override PartName='/word/document.xml' ContentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'/></Types>`);
