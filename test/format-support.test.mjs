@@ -45,6 +45,18 @@ test('expands XLSX shared-string loop rows', async () => {
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('fills namespace-prefixed XLSX string cells stored in v nodes', async () => {
+  const zip = new PizZip();
+  zip.file('xl/workbook.xml', '<workbook/>');
+  zip.file('xl/worksheets/sheet1.xml', '<?xml version="1.0"?><x:worksheet xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><x:sheetData><x:row r="1"><x:c r="A1" t="str"><x:v>订单号：{订单号}</x:v></x:c></x:row><x:row r="2"><x:c r="A2" t="str"><x:v>{#订单明细}{$index+1}</x:v></x:c><x:c r="B2" t="str"><x:v>{产品名称}{/订单明细}</x:v></x:c></x:row></x:sheetData></x:worksheet>');
+  const item = await saveTemplate('string-cell.xlsx', zip.generate({ type: 'nodebuffer' })); let output;
+  try {
+    output = await renderTemplate(item.id, [{ 订单号: 'DD2026001', 订单明细: [{ 产品名称: '无线键盘' }, { 产品名称: '商务显示器' }] }]);
+    const sheet = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText();
+    assert.match(sheet, /订单号：DD2026001/); assert.match(sheet, /无线键盘/); assert.match(sheet, /商务显示器/);
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('renders filled Office record previews as HTML', async () => {
   const docx = new PizZip();
   docx.file('[Content_Types].xml', `<Types xmlns='http://schemas.openxmlformats.org/package/2006/content-types'><Default Extension='rels' ContentType='application/vnd.openxmlformats-package.relationships+xml'/><Default Extension='xml' ContentType='application/xml'/><Override PartName='/word/document.xml' ContentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'/></Types>`);
