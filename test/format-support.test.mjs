@@ -29,6 +29,30 @@ test('imports Feishu online layout export and preserves structured preview', asy
   } finally { for (const output of outputs) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('paginates repeated PDF rows independently of horizontal merged cells', async () => {
+  const cell = children => ({ content: [{ type: 'paragraph', children }] });
+  const table = {
+    columns: [{ width: 1 }, { width: 1 }],
+    rows: [
+      { cells: [cell([{ text: 'Merged heading' }]), cell([])] },
+      { cells: [cell([{ type: 'variable', name: ['明细', 'SKU'] }]), cell([{ text: '12' }])] }
+    ],
+    merges: [{ rowIndex: 0, colIndex: 0, rowSpan: 1, colSpan: 2 }],
+    dynamicRows: [{ rowIndex: 1, dataSource: { rootPath: ['明细'] } }]
+  };
+  const source = { name: 'PDF pagination', content: { document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 4, table }] }] }] }] } } };
+  const item = await saveTemplate('pagination.layout', Buffer.from(JSON.stringify(source)));
+  let output;
+  try {
+    output = await renderTemplate(item.id, [{ 明细: Array.from({ length: 60 }, (_, i) => ({ SKU: `ROW-${i}` })) }], 'pdf');
+    const pdf = (await fs.readFile(outputFile(output.id, 'pdf'))).toString('latin1');
+    assert.equal((pdf.match(/\/Type \/Page\b/g) || []).length, 2);
+  } finally {
+    if (output) await fs.rm(outputFile(output.id, 'pdf'), { force: true });
+    await removeTemplate(item.id);
+  }
+});
+
 test('expands XLSX shared-string loop rows', async () => {
   const zip = new PizZip();
   zip.file('xl/workbook.xml', '<workbook/>');

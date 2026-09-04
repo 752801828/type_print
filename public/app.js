@@ -4,6 +4,8 @@ const basePath = location.pathname.startsWith('/feishu') ? '/feishu' : servedByO
 const appUrl = path => `${basePath}${path}`;
 const sdkUrl = servedByOwnServer ? appUrl('/vendor/lark-base/index.mjs') : new URL('./vendor/lark-base/index.mjs', location.href).href;
 let readGeneration = 0;
+let reading = false;
+let pendingRead = null;
 let selectionBound = false;
 let selectionPoll;
 let selectionTimer;
@@ -25,10 +27,21 @@ const updateAction = () => { const enabled = Boolean(state.selectedTemplate && s
 const formatStats = item => { const stats = item?.stats || {}; if (stats.pages) return `${stats.pages} 页 · ${item?.fields?.length || 0} 个变量`; return stats.worksheets || stats.rows || stats.cells || stats.formulas ? `工作表: ${stats.worksheets || 0}　行数: ${stats.rows || 0}　单元格数: ${stats.cells || 0}　公式数: ${stats.formulas || 0}` : `${item?.fields?.length || 0} 个变量 · ${String(item?.extension || 'docx').replace('.', '').toUpperCase()}`; };
 
 async function basicFieldName(api) { const [meta, apiName] = await Promise.all([api.getMeta ? api.getMeta().catch(() => null) : null, api.getName ? api.getName().catch(() => '') : '']); const relationTableId = meta?.property?.tableId || meta?.property?.table_id || meta?.property?.relationTableId || meta?.property?.relation_table_id || (api.getTableId ? await api.getTableId().catch(() => '') : ''); return { id: String(api.id || meta?.id || ''), name: String(meta?.name || apiName || api.name || api.id || ''), api, relationTableId: String(relationTableId || '') }; }
+async function readSchema(table) {
+  if (table.getFieldMetaList) {
+    const metas = await table.getFieldMetaList();
+    return metas.map(meta => ({ id: String(meta.id), name: meta.name, relationTableId: String(meta.property?.tableId || ''), api: {
+      getValue: id => table.getCellValue(meta.id, typeof id === 'string' ? id : id.recordId),
+      getCellString: async id => { const field = await table.getFieldById(meta.id); return field.getCellString(id); }
+    } }));
+  }
+  return Promise.all((await table.getFieldList()).map(basicFieldName));
+}
+const storedCell = (field, record) => record?.fields && Object.hasOwn(record.fields, field.id) && record.fields[field.id] !== undefined;
 const fallbackRecordField = (field, record) => { const fields = record?.fields || {}; if (fields[field.id] !== undefined) return fields[field.id]; if (fields[field.name] !== undefined) return fields[field.name]; const key = Object.keys(fields).find(candidate => normalizeKey(candidate) === normalizeKey(field.name)); return key === undefined ? undefined : fields[key]; };
 const hasCellValue = value => value != null && value !== '' && value !== 'undefined' && !(typeof value === 'string' && !value.trim());
-async function readField(field, recordId, record, table) { let value; try { value = await table?.getCellValue?.(field.id, recordId); } catch {} if (!hasCellValue(value)) { try { value = await field.api.getValue(record || recordId); } catch {} } if (!hasCellValue(value)) { try { value = await field.api.getValue(recordId); } catch {} } if (!hasCellValue(value)) { try { value = await field.api.getCellString(recordId); } catch {} } if (!hasCellValue(value)) value = fallbackRecordField(field, record); return value ?? ''; }
-async function readRawField(field, recordId, record, table) { try { const value = await table?.getCellValue?.(field.id, recordId); if (hasCellValue(value) && !(Array.isArray(value) && !value.length)) return value; } catch {} for (const target of [record, recordId]) { if (!target) continue; try { const value = await field.api.getValue(target); if (value != null) return value; } catch {} } return fallbackRecordField(field, record) ?? ''; }
+async function readField(field, recordId, record, table) { if (storedCell(field, record)) return record.fields[field.id] ?? ''; let value; try { value = await table?.getCellValue?.(field.id, recordId); } catch {} if (!hasCellValue(value)) { try { value = await field.api.getValue(record || recordId); } catch {} } if (!hasCellValue(value)) { try { value = await field.api.getValue(recordId); } catch {} } if (!hasCellValue(value)) { try { value = await field.api.getCellString(recordId); } catch {} } if (!hasCellValue(value)) value = fallbackRecordField(field, record); return value ?? ''; }
+async function readRawField(field, recordId, record, table) { if (storedCell(field, record)) return record.fields[field.id] ?? ''; try { const value = await table?.getCellValue?.(field.id, recordId); if (hasCellValue(value) && !(Array.isArray(value) && !value.length)) return value; } catch {} for (const target of [record, recordId]) { if (!target) continue; try { const value = await field.api.getValue(target); if (value != null) return value; } catch {} } return fallbackRecordField(field, record) ?? ''; }
 const relationIds = value => { const items = Array.isArray(value) ? value : value == null ? [] : [value]; return [...new Set(items.flatMap(item => { if (typeof item === 'string') return [item]; if (!item || typeof item !== 'object') return []; return item.recordIds || item.record_ids || item.linkRecordIds || item.link_record_ids || [item.recordId || item.record_id || item.id]; }).filter(Boolean).map(String))]; };
 async function readLinkedRows(raw, bitable, fallbackTableId = '') {
   const values = Array.isArray(raw) ? raw : Array.isArray(raw?.value) ? raw.value : raw ? [raw] : [];
@@ -38,7 +51,7 @@ async function readLinkedRows(raw, bitable, fallbackTableId = '') {
   if (!ids.length || !tableId) return [];
   try {
     let schema = linkedSchemaCache.get(tableId);
-    if (!schema) { const table = await bitable.base.getTable(tableId); schema = { table, fields: await Promise.all((await table.getFieldList()).map(basicFieldName)) }; linkedSchemaCache.set(tableId, schema); }
+    if (!schema) { const table = await bitable.base.getTable(tableId); schema = { table, fields: await readSchema(table) }; linkedSchemaCache.set(tableId, schema); }
     const requested = new Map();
     for (const templateField of state.selectedTemplate?.fields || []) { const field = templateField.marker === '#' ? null : findTemplateField(schema.fields, templateField.name); if (field) requested.set(field.id, field); }
     const linkedFields = requested.size ? [...requested.values()] : schema.fields;
@@ -70,6 +83,8 @@ const activeRecordFields = () => {
 async function readRecord(id, table, bitable) { let record; try { record = await table.getRecordById(id); } catch {} const entries = await Promise.all(activeRecordFields().map(async field => { const valueTask = readField(field, id, record, table); const linkedTableId = field.relationTableId || ''; const linkedTask = linkedTableId || isTemplateLoopField(field) ? readRawField(field, id, record, table).then(raw => readLinkedRows(raw, bitable, linkedTableId)) : Promise.resolve([]); return { field, value: await valueTask, linked: await linkedTask }; })); const fields = {}; const loops = {}; for (const { field, value, linked } of entries) { fields[field.id] = value; if (linked.length) { loops[field.name] = linked; loops[stripFieldMark(field.name)] = linked; for (const templateField of matchingTemplateLoops(field)) loops[templateField.name] = linked; } } return { id, fields, loops }; }
 
 async function readCurrentRecord(force = false, snapshot = null) {
+  if (reading) { pendingRead = { force: Boolean(force || pendingRead?.force) }; return; }
+  reading = true;
   const generation = ++readGeneration; const superseded = () => generation !== readGeneration;
   setStatus('正在读取选中记录…');
   try {
@@ -91,7 +106,7 @@ async function readCurrentRecord(force = false, snapshot = null) {
     const sameScope = previous?.tableId === tableId && previous?.viewId === viewId && state.fields.length;
     if (!sameScope) {
       linkedSchemaCache.clear();
-      state.fields = await Promise.all((await table.getFieldList()).map(basicFieldName));
+      state.fields = await readSchema(table);
       if (superseded()) return;
       let visibleFieldIds = []; try { visibleFieldIds = await view?.getVisibleFieldIdList?.() || []; } catch {}
       const fieldsById = new Map(state.fields.map(field => [field.id, field])); state.viewFields = visibleFieldIds.map(id => fieldsById.get(String(id))).filter(Boolean); if (!state.viewFields.length) state.viewFields = state.fields;
@@ -107,7 +122,11 @@ async function readCurrentRecord(force = false, snapshot = null) {
     state.records = await Promise.all(ids.map(id => readRecord(id, table, bitable))); drawDependencies();
     if (superseded()) return;
     $('contextTitle').textContent = `${state.context.baseName || '当前多维表'} / ${state.context.tableName}`; $('contextMeta').textContent = checkedRecordIds.length ? `${state.context.viewName} · 已读取 ${state.records.length} 条勾选记录` : `${state.context.viewName} · 当前活动行`; drawRecord(); setStatus('已连接当前多维表');
-  } catch (error) { if (superseded()) return; const message = /not registered/i.test(String(error?.message || '')) ? '当前页面未注册飞书 Base 宿主，请从多维表「扩展脚本」打开' : error.message || '读取记录失败'; $('contextMeta').textContent = message; setStatus(message); await toast(message, 'error'); }
+  } catch (error) { if (superseded()) return; const message = /not registered/i.test(String(error?.message || '')) ? '当前页面未注册飞书 Base 宿主，请从多维表「扩展脚本」打开' : error.message || '读取记录失败'; $('contextMeta').textContent = message; setStatus(message); toast(message, 'error'); }
+  finally {
+    reading = false;
+    if (pendingRead) { const next = pendingRead; pendingRead = null; queueMicrotask(() => readCurrentRecord(next.force)); }
+  }
 }
 
 async function loadTemplates(scope = state.context) { const key = `${scope?.baseId || ''}/${scope?.tableId || ''}`; templateLoadKey = key; const query = scope?.tableId ? `?baseId=${encodeURIComponent(scope.baseId || '')}&tableId=${encodeURIComponent(scope.tableId)}` : ''; const response = await fetch(appUrl(`/api/templates${query}`)); const result = await response.json(); if (templateLoadKey !== key) return; state.templates = scope?.tableId ? (result.templates || []) : []; if (!state.templates.some(item => item.id === state.selectedTemplate?.id)) state.selectedTemplate = state.templates[0] || null; drawTemplates(); updateAction(); }

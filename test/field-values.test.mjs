@@ -9,7 +9,7 @@ const source = await fs.readFile(new URL('../public/app.js', import.meta.url), '
 function frontend() {
   const context = vm.createContext({ location: { pathname: '/feishu', hostname: 'localhost' } });
   vm.runInContext(source.slice(0, source.indexOf("$('createTemplate').onclick")) +
-    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, templateFieldDiagnostics };', context);
+    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, templateFieldDiagnostics, readSchema, readField, readRawField };', context);
   return context.api;
 }
 
@@ -57,6 +57,18 @@ test('linked row to print payload uses real price and quantity, never derives a 
   assert.equal(details[1]['单价_含税___'], '');
   assert.equal(details[2]['单价_含税___'], '0');
   assert.equal(details[2]['实收数量__'], '0');
+});
+
+test('bulk metadata and record values avoid per-cell bridge calls including blanks and zeros', async () => {
+  const api = frontend(); let calls = 0;
+  const fields = await api.readSchema({ getFieldMetaList: async () => { calls++; return Array.from({length:100},(_,id)=>({id:String(id),name:`字段${id}`,property:{}})); } });
+  assert.equal(calls,1); assert.equal(fields.length,100);
+  for (const value of [null, '', 0, false, [], {recordIds:['rec1'],tableId:'linked'}]) {
+    const table = {getCellValue:()=>{throw new Error('must not re-read stored cells');}};
+    const record = {fields:{'0':value}};
+    assert.deepEqual(await api.readField(fields[0],'record',record,table),value ?? '');
+    assert.deepEqual(await api.readRawField(fields[0],'record',record,table),value ?? '');
+  }
 });
 
 test('record loading keeps only the label and template fields', () => {

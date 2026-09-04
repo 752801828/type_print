@@ -32,7 +32,7 @@ test('selection polling and record loading include checked IDs without scanning 
 
 test('loads the new table template menu before waiting for field metadata', () => {
   const templateStart = source.indexOf('const templatesTask = scopeChanged');
-  const fieldStart = source.indexOf('table.getFieldList()', templateStart);
+  const fieldStart = source.indexOf('await readSchema(table)', templateStart);
   assert.ok(templateStart > 0 && fieldStart > templateStart);
   assert.match(source, /state\.templates = \[\], state\.selectedTemplate = null, drawTemplates\(\), loadTemplates/);
   assert.match(source, /if \(templateLoadKey !== key\) return/);
