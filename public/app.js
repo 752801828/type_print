@@ -214,7 +214,7 @@ async function openRecordPreview(record) {
   } catch (error) { await toast(`预览失败：${error.message}`, 'error'); }
 }
 const templateFieldDiagnostics = () => {
-  const fields = state.fields || [];
+  const fields = [...(state.fields || []), ...[...linkedSchemaCache.values()].flatMap(schema => schema.fields || [])];
   return (state.selectedTemplate?.fields || []).map(templateField => {
     const special = /大写/.test(templateField.name) || templateField.name === '__合同创建时间' || templateField.name === '__SKU总数'; const matched = special ? { name: '系统计算', id: 'system' } : templateField.marker === '#' ? fields.find(field => matchingTemplateLoops(field).some(item => item.name === templateField.name)) : findTemplateField(fields, templateField.name);
     return { ...templateField, matched, fieldId: matched?.id || '', matchedName: matched?.name || '', relationTableId: matched?.relationTableId || '' };

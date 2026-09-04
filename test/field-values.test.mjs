@@ -9,7 +9,7 @@ const source = await fs.readFile(new URL('../public/app.js', import.meta.url), '
 function frontend() {
   const context = vm.createContext({ location: { pathname: '/feishu', hostname: 'localhost' } });
   vm.runInContext(source.slice(0, source.indexOf("$('createTemplate').onclick")) +
-    '\nthis.api = { state, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields };', context);
+    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, templateFieldDiagnostics };', context);
   return context.api;
 }
 
@@ -62,6 +62,22 @@ test('record loading keeps only the label and template fields', () => {
   api.state.viewFields = [api.state.fields[0]];
   api.state.selectedTemplate = { fields: [{ marker: '', name: '__供应商' }] };
   assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'needed']);
+});
+
+test('field diagnostics accept matching fields from the linked detail table', () => {
+  const api = frontend();
+  api.state.fields = [{ id: 'details', name: '合同明细-采购明细' }];
+  api.state.selectedTemplate = { fields: [
+    { marker: '#', name: '__合同明细_采购明细' },
+    ...['__开票品名', '单位', '单价_含税___', '总价_含税_'].map(name => ({ marker: '', name }))
+  ] };
+  api.linkedSchemaCache.set('details-table', { fields: [
+    { id: 'name', name: '开票品名💻' }, { id: 'unit', name: '单位' },
+    { id: 'price', name: '单价(含税)💻' }, { id: 'total', name: '总价(含税)💻' }
+  ] });
+  const diagnostics = [...api.templateFieldDiagnostics()];
+  assert.equal(diagnostics.filter(item => !item.matched).length, 0);
+  assert.equal(diagnostics.find(item => item.name === '单价_含税___').fieldId, 'price');
 });
 
 test('DOCX renderer matches encoded names inside loops and keeps absent price blank', async () => {
