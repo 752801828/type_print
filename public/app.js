@@ -9,6 +9,7 @@ let selectionPoll;
 let selectionTimer;
 let selectionPolling = false;
 let templateLoadKey = '';
+let pendingRead = null;
 const linkedSchemaCache = new Map();
 const state = { fields: [], viewFields: [], records: [], templates: [], selectedTemplate: null, context: null, table: null, view: null };
 const $ = id => document.getElementById(id);
@@ -69,19 +70,19 @@ const activeRecordFields = () => {
 };
 async function readRecord(id, table, bitable) { let record; try { record = await table.getRecordById(id); } catch {} const entries = await Promise.all(activeRecordFields().map(async field => { const valueTask = readField(field, id, record, table); const linkedTableId = field.relationTableId || ''; const linkedTask = linkedTableId || isTemplateLoopField(field) ? readRawField(field, id, record, table).then(raw => readLinkedRows(raw, bitable, linkedTableId)) : Promise.resolve([]); return { field, value: await valueTask, linked: await linkedTask }; })); const fields = {}; const loops = {}; for (const { field, value, linked } of entries) { fields[field.id] = value; if (linked.length) { loops[field.name] = linked; loops[stripFieldMark(field.name)] = linked; for (const templateField of matchingTemplateLoops(field)) loops[templateField.name] = linked; } } return { id, fields, loops }; }
 
-async function readCurrentRecord(force = false) {
-  if (reading) return;
+async function readCurrentRecord(force = false, snapshot = null) {
+  if (reading) { pendingRead = { force: Boolean(force || pendingRead?.force), snapshot: snapshot || pendingRead?.snapshot || null }; return; }
   reading = true;
   setStatus('正在读取选中记录…');
   try {
     if (!sdk) sdk = await import(sdkUrl);
     bindSelectionListener();
     const { bitable } = sdk;
-    let selection = {}; try { selection = await bitable.base.getSelection(); } catch {}
-    let table = null; if (selection.tableId && bitable.base.getTableById) { try { table = await bitable.base.getTableById(selection.tableId); } catch {} } if (!table) table = await bitable.base.getActiveTable();
+    let selection = snapshot?.selection || {}; if (!snapshot?.selection) try { selection = await bitable.base.getSelection(); } catch {}
+    let table = state.table && state.context?.tableId === String(selection.tableId || '') ? state.table : null; if (!table && selection.tableId && bitable.base.getTableById) { try { table = await bitable.base.getTableById(selection.tableId); } catch {} } if (!table) table = await bitable.base.getActiveTable();
     const meta = selection.tableId || table.id ? null : await table.getMeta();
-    let view = null; try { view = selection.viewId && table.getViewById ? await table.getViewById(selection.viewId) : await table.getActiveView(); } catch {}
-    const checkedRecordIds = view?.getSelectedRecordIdList ? (await view.getSelectedRecordIdList().catch(() => [])).map(String) : [];
+    let view = state.view && state.context?.viewId === String(selection.viewId || '') ? state.view : null; if (!view) try { view = selection.viewId && table.getViewById ? await table.getViewById(selection.viewId) : await table.getActiveView(); } catch {}
+    const checkedRecordIds = ((snapshot && Object.hasOwn(snapshot, 'checked') ? snapshot.checked : view?.getSelectedRecordIdList ? await view.getSelectedRecordIdList().catch(() => []) : []) || []).map(String);
     const selectedRecordIds = currentReadRecordIds(selection, checkedRecordIds);
     const baseId = String(selection.baseId || ''); const tableId = String(selection.tableId || table.id || meta?.id || ''); const viewId = String(selection.viewId || view?.id || ''); const selectionKey = `${baseId}/${tableId}/${viewId}/${selectedRecordIds.join(',')}`; const previous = state.context;
     if (!force && previous?.selectionKey === selectionKey) return;
@@ -103,7 +104,7 @@ async function readCurrentRecord(force = false) {
     state.records = await Promise.all(ids.map(id => readRecord(id, table, bitable))); drawDependencies();
     $('contextTitle').textContent = `${state.context.baseName || '当前多维表'} / ${state.context.tableName}`; $('contextMeta').textContent = checkedRecordIds.length ? `${state.context.viewName} · 已读取 ${state.records.length} 条勾选记录` : `${state.context.viewName} · 当前活动行`; drawRecord(); setStatus('已连接当前多维表');
   } catch (error) { const message = /not registered/i.test(String(error?.message || '')) ? '当前页面未注册飞书 Base 宿主，请从多维表「扩展脚本」打开' : error.message || '读取记录失败'; $('contextMeta').textContent = message; setStatus(message); await toast(message, 'error'); }
-  finally { reading = false; }
+  finally { reading = false; if (pendingRead) { const next = pendingRead; pendingRead = null; queueMicrotask(() => readCurrentRecord(next.force, next.snapshot)); } }
 }
 
 async function loadTemplates(scope = state.context) { const key = `${scope?.baseId || ''}/${scope?.tableId || ''}`; templateLoadKey = key; const query = scope?.tableId ? `?baseId=${encodeURIComponent(scope.baseId || '')}&tableId=${encodeURIComponent(scope.tableId)}` : ''; const response = await fetch(appUrl(`/api/templates${query}`)); const result = await response.json(); if (templateLoadKey !== key) return; state.templates = scope?.tableId ? (result.templates || []) : []; if (!state.templates.some(item => item.id === state.selectedTemplate?.id)) state.selectedTemplate = state.templates[0] || null; drawTemplates(); updateAction(); }
@@ -240,5 +241,5 @@ $('generate').onclick = async () => {
   } catch (error) { toast(error.name === 'AbortError' ? '生成超时，请重试或改选 Word / Excel' : error.message, 'error'); }
   finally { clearTimeout(timeout); updateAction(); }
 };
-const bindSelectionListener = () => { if (selectionBound || !sdk?.bitable?.base) return; selectionBound = true; try { sdk.bitable.base.onSelectionChange(() => { clearTimeout(selectionTimer); selectionTimer = setTimeout(readCurrentRecord, 20); }); } catch {} selectionPoll = setInterval(async () => { if (selectionPolling) return; selectionPolling = true; try { const [current, checked] = await Promise.all([sdk.bitable.base.getSelection(), state.view?.getSelectedRecordIdList ? state.view.getSelectedRecordIdList() : []]); const ids = currentReadRecordIds(current, checked); const key = `${current.baseId || ''}/${current.tableId || ''}/${current.viewId || ''}/${ids.join(',')}`; if (state.context?.selectionKey && state.context.selectionKey !== key) { $('contextMeta').textContent = '正在读取勾选记录…'; readCurrentRecord(); } } catch {} finally { selectionPolling = false; } }, 200); };
+const bindSelectionListener = () => { if (selectionBound || !sdk?.bitable?.base) return; selectionBound = true; try { sdk.bitable.base.onSelectionChange(() => { $('contextMeta').textContent = '正在读取选择…'; clearTimeout(selectionTimer); selectionTimer = setTimeout(readCurrentRecord, 20); }); } catch {} selectionPoll = setInterval(async () => { if (selectionPolling) return; selectionPolling = true; try { const [current, checked] = await Promise.all([sdk.bitable.base.getSelection(), state.view?.getSelectedRecordIdList ? state.view.getSelectedRecordIdList() : []]); const ids = currentReadRecordIds(current, checked); const key = `${current.baseId || ''}/${current.tableId || ''}/${current.viewId || ''}/${ids.join(',')}`; if (state.context?.selectionKey && state.context.selectionKey !== key) { $('contextMeta').textContent = '正在读取勾选记录…'; const sameScope = state.context.tableId === String(current.tableId || '') && state.context.viewId === String(current.viewId || ''); readCurrentRecord(false, sameScope ? { selection: current, checked } : { selection: current }); } } catch {} finally { selectionPolling = false; } }, 200); };
 readCurrentRecord();

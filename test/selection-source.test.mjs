@@ -19,6 +19,10 @@ test('selection polling and record loading include checked IDs without scanning 
   assert.match(source, /Promise\.all\(\[sdk\.bitable\.base\.getSelection\(\), state\.view\?\.getSelectedRecordIdList/);
   assert.match(source, /\}, 200\);/);
   assert.doesNotMatch(source, /\}, 700\);/);
+  assert.doesNotMatch(source, /if \(reading\) return/);
+  assert.match(source, /pendingRead = \{ force:/);
+  assert.match(source, /queueMicrotask\(\(\) => readCurrentRecord\(next\.force, next\.snapshot\)\)/);
+  assert.match(source, /sameScope \? \{ selection: current, checked \} : \{ selection: current \}/);
   assert.match(source, /activeRecordFields\(\)\.map/);
   assert.match(source, /getFieldList\(\)\)\.map\(basicFieldName\)/);
   assert.doesNotMatch(source, /getDependencyFields|getRecords\(\{ pageSize: 5000|getRecordListByPage/);
