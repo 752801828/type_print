@@ -177,8 +177,42 @@ const renderLayoutPreview = (layout, scope = null) => {
   }
   return root;
 };
-async function openPreview(id) { try { const response = await fetch(appUrl(`/api/templates/${id}/preview`)); const data = await response.json(); if (!response.ok) throw new Error(data.error); const fileUrl = appUrl(data.fileUrl); $('previewTitle').textContent = data.template.name; $('previewMeta').textContent = `${String(data.template.extension || '').replace('.', '').toUpperCase()} · ${formatStats(data.template)}`; $('previewMeta').classList.remove('record-render-meta'); $('downloadPreview').hidden = false; $('downloadPreview').href = fileUrl; $('previewFields').hidden = false; const frame = $('previewFrame'); const layout = $('previewLayout'); const textNode = $('previewText'); frame.hidden = data.kind !== 'pdf' && data.kind !== 'html'; layout.hidden = data.kind !== 'layout'; textNode.hidden = data.kind === 'pdf' || data.kind === 'html' || data.kind === 'layout'; if (data.kind === 'pdf') { frame.removeAttribute('srcdoc'); frame.src = fileUrl; } else if (data.kind === 'html') { frame.removeAttribute('src'); frame.srcdoc = data.html; } else if (data.kind === 'layout') { layout.replaceChildren(renderLayoutPreview(data.layout)); } else textNode.textContent = data.content || '此格式无法在浏览器内直接渲染，已显示模板变量信息。'; $('previewFields').innerHTML = (data.fields || []).length ? `<strong>识别到的变量</strong><div>${data.fields.map(field => `<span class="preview-chip">${escapeHtml(field.marker ? `{${field.marker}${field.name}}` : `{${field.name}}`)}</span>`).join('')}</div>` : '<span>未识别到变量</span>'; $('previewDialog').showModal(); } catch (error) { await toast(error.message, 'error'); } }
-async function openRecordPreview(record) { if (!state.selectedTemplate) return toast('请先选择模板', 'error'); try { const response = await fetch(appUrl(`/api/templates/${state.selectedTemplate.id}/record-preview`), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ record: recordScope(record) }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); const primary = state.viewFields[0] || state.fields[0]; const label = primary ? text(record.fields[primary.id]) : record.id; $('previewTitle').textContent = `${data.template.name} · 记录预览`; $('previewMeta').textContent = `${label || '当前记录'} · 已填充真实数据`; $('previewMeta').classList.add('record-render-meta'); $('previewFields').hidden = true; $('downloadPreview').hidden = true; const frame = $('previewFrame'); const layout = $('previewLayout'); const textNode = $('previewText'); frame.hidden = true; layout.hidden = true; textNode.hidden = false; textNode.innerHTML = ''; const previewDoc = frame.contentDocument || frame.contentWindow?.document; frame.hidden = false; textNode.hidden = true; frame.srcdoc = data.html; $('previewDialog').showModal(); } catch (error) { await toast(`预览失败：${error.message}`, 'error'); } }
+const resetPreview = () => {
+  $('previewDocx').replaceChildren(); $('previewDocx').hidden = true;
+  $('previewFrame').hidden = true; $('previewFrame').removeAttribute('src'); $('previewFrame').removeAttribute('srcdoc');
+  $('previewLayout').hidden = true; $('previewLayout').replaceChildren();
+  $('previewText').hidden = true; $('previewText').textContent = '';
+};
+const renderDocxPreview = async blob => {
+  if (!window.docx?.renderAsync) throw new Error('DOCX 布局渲染器加载失败');
+  const host = $('previewDocx'); host.hidden = false;
+  await window.docx.renderAsync(await blob.arrayBuffer(), host, host, { breakPages: true, ignoreWidth: false, ignoreHeight: false, ignoreFonts: false, renderHeaders: true, renderFooters: true, renderFootnotes: true, renderEndnotes: true, useBase64URL: true });
+};
+async function openPreview(id) {
+  try {
+    const response = await fetch(appUrl(`/api/templates/${id}/preview`)); const data = await response.json(); if (!response.ok) throw new Error(data.error);
+    const fileUrl = appUrl(data.fileUrl); resetPreview();
+    $('previewTitle').textContent = data.template.name; $('previewMeta').textContent = `${String(data.template.extension || '').replace('.', '').toUpperCase()} · ${formatStats(data.template)}`; $('previewMeta').classList.remove('record-render-meta');
+    $('downloadPreview').hidden = false; $('downloadPreview').href = fileUrl; $('previewFields').hidden = false; $('previewFields').innerHTML = (data.fields || []).length ? `<strong>识别到的变量</strong><div>${data.fields.map(field => `<span class="preview-chip">${escapeHtml(field.marker ? `{${field.marker}${field.name}}` : `{${field.name}}`)}</span>`).join('')}</div>` : '<span>未识别到变量</span>';
+    $('previewDialog').showModal();
+    if (data.kind === 'docx') { const file = await fetch(fileUrl); if (!file.ok) throw new Error('DOCX 模板读取失败'); await renderDocxPreview(await file.blob()); }
+    else if (data.kind === 'pdf') { $('previewFrame').hidden = false; $('previewFrame').src = fileUrl; }
+    else if (data.kind === 'html') { $('previewFrame').hidden = false; $('previewFrame').srcdoc = data.html; }
+    else if (data.kind === 'layout') { $('previewLayout').hidden = false; $('previewLayout').replaceChildren(renderLayoutPreview(data.layout)); }
+    else { $('previewText').hidden = false; $('previewText').textContent = data.content || '此格式无法在浏览器内直接渲染，已显示模板变量信息。'; }
+  } catch (error) { await toast(error.message, 'error'); }
+}
+async function openRecordPreview(record) {
+  if (!state.selectedTemplate) return toast('请先选择模板', 'error');
+  try {
+    const response = await fetch(appUrl(`/api/templates/${state.selectedTemplate.id}/record-preview`), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ record: recordScope(record) }) });
+    if (!response.ok) { const error = await response.json(); throw new Error(error.error); }
+    const primary = state.viewFields[0] || state.fields[0]; const label = primary ? text(record.fields[primary.id]) : record.id; resetPreview();
+    $('previewTitle').textContent = `${state.selectedTemplate.name} · 记录预览`; $('previewMeta').textContent = `${label || '当前记录'} · 已填充真实数据`; $('previewMeta').classList.add('record-render-meta'); $('previewFields').hidden = true; $('downloadPreview').hidden = true; $('previewDialog').showModal();
+    if (response.headers.get('content-type')?.includes('wordprocessingml')) await renderDocxPreview(await response.blob());
+    else { const data = await response.json(); $('previewFrame').hidden = false; $('previewFrame').srcdoc = data.html; }
+  } catch (error) { await toast(`预览失败：${error.message}`, 'error'); }
+}
 const templateFieldDiagnostics = () => {
   const fields = state.fields || [];
   return (state.selectedTemplate?.fields || []).map(templateField => {

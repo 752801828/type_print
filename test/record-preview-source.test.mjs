@@ -16,4 +16,8 @@ test('record panel opens a full online-layout render instead of a field table', 
   assert.doesNotMatch(html, /variableGuideDialog|dataSourceVariables|variableQuickRef|scanTemplate|batchDialog/);
   assert.match(source, /record-preview/);
   assert.match(source, /srcdoc = data\.html/);
+  assert.match(html, /id="previewDocx"/);
+  assert.match(html, /vendor\/docx-preview\.min\.js/);
+  assert.match(source, /window\.docx\.renderAsync/);
+  assert.doesNotMatch(source, /docxPreviewHtml/);
 });

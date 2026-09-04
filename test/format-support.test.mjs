@@ -68,7 +68,7 @@ test('expands XLSX loops spanning multiple template rows', async () => {
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
-test('renders filled Office record previews as HTML', async () => {
+test('returns a filled DOCX for faithful record preview and HTML for XLSX', async () => {
   const docx = new PizZip();
   docx.file('[Content_Types].xml', `<Types xmlns='http://schemas.openxmlformats.org/package/2006/content-types'><Default Extension='rels' ContentType='application/vnd.openxmlformats-package.relationships+xml'/><Default Extension='xml' ContentType='application/xml'/><Override PartName='/word/document.xml' ContentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'/></Types>`);
   docx.file('_rels/.rels', `<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/relationships'><Relationship Id='rId1' Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument' Target='word/document.xml'/></Relationships>`);
@@ -76,7 +76,7 @@ test('renders filled Office record previews as HTML', async () => {
   const docxItem = await saveTemplate('preview.docx', docx.generate({ type: 'nodebuffer' }));
   const xlsx = new PizZip(); xlsx.file('xl/workbook.xml', '<workbook/>'); xlsx.file('xl/worksheets/sheet1.xml', `<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>{编号}</t></is></c></row></sheetData></worksheet>`);
   const xlsxItem = await saveTemplate('preview.xlsx', xlsx.generate({ type: 'nodebuffer' }));
-  try { const docxPreview = await (await import('../lib/template-store.mjs')).previewRecord(docxItem.id, { 客户: '张三' }); assert.equal(docxPreview.kind, 'html'); assert.match(docxPreview.html, /张三/); const xlsxPreview = await (await import('../lib/template-store.mjs')).previewRecord(xlsxItem.id, { 编号: 'A-100' }); assert.equal(xlsxPreview.kind, 'html'); assert.match(xlsxPreview.html, /A-100/); } finally { await removeTemplate(docxItem.id); await removeTemplate(xlsxItem.id); }
+  try { const docxPreview = await (await import('../lib/template-store.mjs')).previewRecord(docxItem.id, { 客户: '张三' }); assert.equal(docxPreview.kind, 'docx'); assert.match(new PizZip(docxPreview.bytes).file('word/document.xml').asText(), /张三/); const xlsxPreview = await (await import('../lib/template-store.mjs')).previewRecord(xlsxItem.id, { 编号: 'A-100' }); assert.equal(xlsxPreview.kind, 'html'); assert.match(xlsxPreview.html, /A-100/); } finally { await removeTemplate(docxItem.id); await removeTemplate(xlsxItem.id); }
 });
 
 test('applies procurement template special mappings', async () => {

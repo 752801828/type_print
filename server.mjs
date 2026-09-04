@@ -9,12 +9,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, 'public');
 const sdkEntry = createRequire(import.meta.url).resolve('@lark-base-open/js-sdk');
 const sdkDir = path.dirname(sdkEntry);
+const docxPreviewDir = path.dirname(createRequire(import.meta.url).resolve('docx-preview'));
+const jszipDir = path.dirname(path.dirname(createRequire(import.meta.url).resolve('jszip')));
 const port = Number(process.env.PORT || 4318);
 const host = process.env.HOST || '0.0.0.0';
 const build = 'feiye-independent';
 const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.mjs':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.txt':'text/plain; charset=utf-8', '.layout':'application/json; charset=utf-8', '.svg':'image/svg+xml', '.doc':'application/msword', '.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xls':'application/vnd.ms-excel', '.pdf':'application/pdf', '.zip':'application/zip' };
 
-const send = (res, status, body, type = 'application/json; charset=utf-8') => { res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,x-file-name,x-base-id,x-table-id,x-view-id,x-base-name,x-table-name', 'x-feiye-build': build, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors https://feishu.cn https://*.feishu.cn https://larksuite.com https://*.larksuite.com http://localhost:* http://127.0.0.1:*" }); res.end(body); };
+const send = (res, status, body, type = 'application/json; charset=utf-8') => { res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,x-file-name,x-base-id,x-table-id,x-view-id,x-base-name,x-table-name', 'x-feiye-build': build, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors https://feishu.cn https://*.feishu.cn https://larksuite.com https://*.larksuite.com http://localhost:* http://127.0.0.1:*" }); res.end(body); };
 const json = (res, status, value) => send(res, status, JSON.stringify(value));
 const body = async (req, limit = 25 * 1024 * 1024) => {
   const chunks = []; let size = 0;
@@ -24,8 +26,9 @@ const body = async (req, limit = 25 * 1024 * 1024) => {
 const safe = (base, relative) => { const target = path.resolve(base, relative); return target === base || target.startsWith(`${base}${path.sep}`) ? target : null; };
 const serve = async (req, res, pathname) => {
   const isVendor = pathname.startsWith('/vendor/lark-base/');
+  const vendorFile = pathname === '/vendor/docx-preview.min.js' ? path.join(docxPreviewDir, 'docx-preview.min.js') : pathname === '/vendor/jszip.min.js' ? path.join(jszipDir, 'dist', 'jszip.min.js') : null;
   const relative = isVendor ? pathname.slice('/vendor/lark-base/'.length) : pathname === '/' || pathname === '/feishu' ? 'index.html' : pathname.slice(1);
-  const target = safe(isVendor ? sdkDir : publicDir, relative);
+  const target = vendorFile || safe(isVendor ? sdkDir : publicDir, relative);
   if (!target || (!isVendor && relative.includes('..'))) return send(res, 404, 'Not found', 'text/plain; charset=utf-8');
   try { const data = await fs.readFile(target); send(res, 200, data, mime[path.extname(target).toLowerCase()] || 'application/octet-stream'); }
   catch { send(res, 404, 'Not found', 'text/plain; charset=utf-8'); }
@@ -56,7 +59,7 @@ const server = http.createServer(async (req, res) => {
     const templatePreviewMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/preview$/);
     if (templatePreviewMatch && req.method === 'GET') return json(res, 200, await previewTemplate(templatePreviewMatch[1]));
     const recordPreviewMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/record-preview$/);
-    if (recordPreviewMatch && req.method === 'POST') { const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8')); return json(res, 200, await previewRecord(recordPreviewMatch[1], input.record || {})); }
+    if (recordPreviewMatch && req.method === 'POST') { const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8')); const preview = await previewRecord(recordPreviewMatch[1], input.record || {}); if (preview.kind === 'docx') return send(res, 200, preview.bytes, mime['.docx']); return json(res, 200, preview); }
     if (pathname === '/api/generate-docx' && req.method === 'POST') {
       const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8'));
       return json(res, 201, { output: await renderTemplate(input.templateId, input.records, input.outputFormat) });

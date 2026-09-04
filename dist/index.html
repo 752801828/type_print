@@ -24,7 +24,9 @@
       </section>
     </main>
   </div>
-  <dialog class="preview-dialog" id="previewDialog"><button class="dialog-close" id="closePreview">×</button><h2 id="previewTitle">模板预览</h2><div id="previewMeta" class="preview-meta"></div><iframe id="previewFrame" class="preview-frame" hidden></iframe><div id="previewLayout" class="preview-layout" hidden></div><pre id="previewText" class="preview-text" hidden></pre><div id="previewFields" class="preview-fields"></div><a id="downloadPreview" class="preview-download" href="#" download>下载原文件</a></dialog>
+  <dialog class="preview-dialog" id="previewDialog"><button class="dialog-close" id="closePreview">×</button><h2 id="previewTitle">模板预览</h2><div id="previewMeta" class="preview-meta"></div><div id="previewDocx" class="docx-preview-host" hidden></div><iframe id="previewFrame" class="preview-frame" hidden></iframe><div id="previewLayout" class="preview-layout" hidden></div><pre id="previewText" class="preview-text" hidden></pre><div id="previewFields" class="preview-fields"></div><a id="downloadPreview" class="preview-download" href="#" download>下载原文件</a></dialog>
+  <script src="./vendor/jszip.min.js"></script>
+  <script src="./vendor/docx-preview.min.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
