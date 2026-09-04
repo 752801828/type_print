@@ -3,13 +3,12 @@ const servedByOwnServer = location.pathname.startsWith('/feishu') || ['127.0.0.1
 const basePath = location.pathname.startsWith('/feishu') ? '/feishu' : servedByOwnServer ? '' : 'https://gzwy.online/feishu';
 const appUrl = path => `${basePath}${path}`;
 const sdkUrl = servedByOwnServer ? appUrl('/vendor/lark-base/index.mjs') : new URL('./vendor/lark-base/index.mjs', location.href).href;
-let reading = false;
+let readGeneration = 0;
 let selectionBound = false;
 let selectionPoll;
 let selectionTimer;
 let selectionPolling = false;
 let templateLoadKey = '';
-let pendingRead = null;
 const linkedSchemaCache = new Map();
 const state = { fields: [], viewFields: [], records: [], templates: [], selectedTemplate: null, context: null, table: null, view: null };
 const $ = id => document.getElementById(id);
@@ -25,7 +24,7 @@ const updateOutputOptions = item => { const current = $('outputFormat').value; c
 const updateAction = () => { const enabled = Boolean(state.selectedTemplate && state.records.length); $('generate').disabled = !enabled; $('selectedSummary').textContent = enabled ? `${state.selectedTemplate.name} · ${state.records.length} 条记录` : '选择模板并读取记录后继续'; $('generate').textContent = state.selectedTemplate ? `生成 ${outputLabel($('outputFormat').value)}　→` : '生成文件　→'; };
 const formatStats = item => { const stats = item?.stats || {}; if (stats.pages) return `${stats.pages} 页 · ${item?.fields?.length || 0} 个变量`; return stats.worksheets || stats.rows || stats.cells || stats.formulas ? `工作表: ${stats.worksheets || 0}　行数: ${stats.rows || 0}　单元格数: ${stats.cells || 0}　公式数: ${stats.formulas || 0}` : `${item?.fields?.length || 0} 个变量 · ${String(item?.extension || 'docx').replace('.', '').toUpperCase()}`; };
 
-async function basicFieldName(api) { const meta = api.getMeta ? await api.getMeta().catch(() => null) : null; const relationTableId = meta?.property?.tableId || meta?.property?.table_id || meta?.property?.relationTableId || meta?.property?.relation_table_id || (api.getTableId ? await api.getTableId().catch(() => '') : ''); return { id: String(api.id || meta?.id || ''), name: String(meta?.name || await api.getName?.() || api.name || api.id || ''), api, relationTableId: String(relationTableId || '') }; }
+async function basicFieldName(api) { const [meta, apiName] = await Promise.all([api.getMeta ? api.getMeta().catch(() => null) : null, api.getName ? api.getName().catch(() => '') : '']); const relationTableId = meta?.property?.tableId || meta?.property?.table_id || meta?.property?.relationTableId || meta?.property?.relation_table_id || (api.getTableId ? await api.getTableId().catch(() => '') : ''); return { id: String(api.id || meta?.id || ''), name: String(meta?.name || apiName || api.name || api.id || ''), api, relationTableId: String(relationTableId || '') }; }
 const fallbackRecordField = (field, record) => { const fields = record?.fields || {}; if (fields[field.id] !== undefined) return fields[field.id]; if (fields[field.name] !== undefined) return fields[field.name]; const key = Object.keys(fields).find(candidate => normalizeKey(candidate) === normalizeKey(field.name)); return key === undefined ? undefined : fields[key]; };
 const hasCellValue = value => value != null && value !== '' && value !== 'undefined' && !(typeof value === 'string' && !value.trim());
 async function readField(field, recordId, record, table) { let value; try { value = await table?.getCellValue?.(field.id, recordId); } catch {} if (!hasCellValue(value)) { try { value = await field.api.getValue(record || recordId); } catch {} } if (!hasCellValue(value)) { try { value = await field.api.getValue(recordId); } catch {} } if (!hasCellValue(value)) { try { value = await field.api.getCellString(recordId); } catch {} } if (!hasCellValue(value)) value = fallbackRecordField(field, record); return value ?? ''; }
@@ -71,11 +70,11 @@ const activeRecordFields = () => {
 async function readRecord(id, table, bitable) { let record; try { record = await table.getRecordById(id); } catch {} const entries = await Promise.all(activeRecordFields().map(async field => { const valueTask = readField(field, id, record, table); const linkedTableId = field.relationTableId || ''; const linkedTask = linkedTableId || isTemplateLoopField(field) ? readRawField(field, id, record, table).then(raw => readLinkedRows(raw, bitable, linkedTableId)) : Promise.resolve([]); return { field, value: await valueTask, linked: await linkedTask }; })); const fields = {}; const loops = {}; for (const { field, value, linked } of entries) { fields[field.id] = value; if (linked.length) { loops[field.name] = linked; loops[stripFieldMark(field.name)] = linked; for (const templateField of matchingTemplateLoops(field)) loops[templateField.name] = linked; } } return { id, fields, loops }; }
 
 async function readCurrentRecord(force = false, snapshot = null) {
-  if (reading) { pendingRead = { force: Boolean(force || pendingRead?.force), snapshot: snapshot || pendingRead?.snapshot || null }; return; }
-  reading = true;
+  const generation = ++readGeneration; const superseded = () => generation !== readGeneration;
   setStatus('正在读取选中记录…');
   try {
     if (!sdk) sdk = await import(sdkUrl);
+    if (superseded()) return;
     bindSelectionListener();
     const { bitable } = sdk;
     let selection = snapshot?.selection || {}; if (!snapshot?.selection) try { selection = await bitable.base.getSelection(); } catch {}
@@ -83,6 +82,7 @@ async function readCurrentRecord(force = false, snapshot = null) {
     const meta = selection.tableId || table.id ? null : await table.getMeta();
     let view = state.view && state.context?.viewId === String(selection.viewId || '') ? state.view : null; if (!view) try { view = selection.viewId && table.getViewById ? await table.getViewById(selection.viewId) : await table.getActiveView(); } catch {}
     const checkedRecordIds = ((snapshot && Object.hasOwn(snapshot, 'checked') ? snapshot.checked : view?.getSelectedRecordIdList ? await view.getSelectedRecordIdList().catch(() => []) : []) || []).map(String);
+    if (superseded()) return;
     const selectedRecordIds = currentReadRecordIds(selection, checkedRecordIds);
     const baseId = String(selection.baseId || ''); const tableId = String(selection.tableId || table.id || meta?.id || ''); const viewId = String(selection.viewId || view?.id || ''); const selectionKey = `${baseId}/${tableId}/${viewId}/${selectedRecordIds.join(',')}`; const previous = state.context;
     if (!force && previous?.selectionKey === selectionKey) return;
@@ -92,19 +92,22 @@ async function readCurrentRecord(force = false, snapshot = null) {
     if (!sameScope) {
       linkedSchemaCache.clear();
       state.fields = await Promise.all((await table.getFieldList()).map(basicFieldName));
+      if (superseded()) return;
       let visibleFieldIds = []; try { visibleFieldIds = await view?.getVisibleFieldIdList?.() || []; } catch {}
       const fieldsById = new Map(state.fields.map(field => [field.id, field])); state.viewFields = visibleFieldIds.map(id => fieldsById.get(String(id))).filter(Boolean); if (!state.viewFields.length) state.viewFields = state.fields;
     }
     const names = sameScope ? [previous.baseName, previous.tableName, previous.viewName] : await Promise.all([bitable.base.getBaseName?.().catch(() => '') || '', table.getName().catch(() => ''), view?.getName?.().catch(() => '') || '']);
+    if (superseded()) return;
     state.table = table; state.view = view; state.context = { baseId, tableId, viewId, selectionKey, baseName: String(names[0] || ''), tableName: String(names[1] || ''), viewName: String(names[2] || '当前记录') };
     await templatesTask;
+    if (superseded()) return;
     let ids = selectedRecordIds;
     if (!ids.length) { try { ids = (await table.getRecordIdList?.()).slice(0, 1); } catch {} }
     if (!ids.length) throw new Error('当前没有可读取的记录');
     state.records = await Promise.all(ids.map(id => readRecord(id, table, bitable))); drawDependencies();
+    if (superseded()) return;
     $('contextTitle').textContent = `${state.context.baseName || '当前多维表'} / ${state.context.tableName}`; $('contextMeta').textContent = checkedRecordIds.length ? `${state.context.viewName} · 已读取 ${state.records.length} 条勾选记录` : `${state.context.viewName} · 当前活动行`; drawRecord(); setStatus('已连接当前多维表');
-  } catch (error) { const message = /not registered/i.test(String(error?.message || '')) ? '当前页面未注册飞书 Base 宿主，请从多维表「扩展脚本」打开' : error.message || '读取记录失败'; $('contextMeta').textContent = message; setStatus(message); await toast(message, 'error'); }
-  finally { reading = false; if (pendingRead) { const next = pendingRead; pendingRead = null; queueMicrotask(() => readCurrentRecord(next.force, next.snapshot)); } }
+  } catch (error) { if (superseded()) return; const message = /not registered/i.test(String(error?.message || '')) ? '当前页面未注册飞书 Base 宿主，请从多维表「扩展脚本」打开' : error.message || '读取记录失败'; $('contextMeta').textContent = message; setStatus(message); await toast(message, 'error'); }
 }
 
 async function loadTemplates(scope = state.context) { const key = `${scope?.baseId || ''}/${scope?.tableId || ''}`; templateLoadKey = key; const query = scope?.tableId ? `?baseId=${encodeURIComponent(scope.baseId || '')}&tableId=${encodeURIComponent(scope.tableId)}` : ''; const response = await fetch(appUrl(`/api/templates${query}`)); const result = await response.json(); if (templateLoadKey !== key) return; state.templates = scope?.tableId ? (result.templates || []) : []; if (!state.templates.some(item => item.id === state.selectedTemplate?.id)) state.selectedTemplate = state.templates[0] || null; drawTemplates(); updateAction(); }
