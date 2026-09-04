@@ -22,6 +22,8 @@ test('legacy encoding preserves every underscore and takes priority over similar
   assert.equal(api.findTemplateField(fields, '单价_含税___').name, '单价(含税)💻');
   assert.equal(api.findTemplateField([{ name: '数量' }, { name: '实收数量💻' }], '实收数量__').name, '实收数量💻');
   assert.equal(api.findTemplateField([{ id: 'short', name: '合同明细' }, { id: 'linked', name: '合同明细-采购明细' }], '__合同明细_采购明细').id, 'linked');
+  assert.equal(api.findTemplateField([{ name: '合同明细' }], '__合同明细_采购明细'), undefined);
+  assert.equal(api.findTemplateField([{ name: '数量' }], '实收数量__'), undefined);
 });
 
 test('linked row to print payload uses real price and quantity, never derives a missing price', async () => {

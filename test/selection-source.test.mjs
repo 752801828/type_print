@@ -30,6 +30,7 @@ test('keeps linked records, exact placeholder matching and field diagnostics', (
   assert.match(source, /item\.link_record_ids/);
   assert.match(source, /loops\[templateField\.name\] = linked/);
   assert.match(source, /legacyPlaceholderName/);
+  assert.doesNotMatch(source, /right\.includes\(left\)|left\.includes\(right\)/);
   assert.match(source, /const templateFieldDiagnostics/);
   assert.match(source, /字段 ID/);
   assert.doesNotMatch(source, /lineTotal \/ quantity/);
