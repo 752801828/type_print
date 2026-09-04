@@ -25,6 +25,14 @@ test('selection polling and record loading include checked IDs without scanning 
   assert.doesNotMatch(source, /batchRecord|batchDialog|batchColumn|batchPage/);
 });
 
+test('loads the new table template menu before waiting for field metadata', () => {
+  const templateStart = source.indexOf('const templatesTask = scopeChanged');
+  const fieldStart = source.indexOf('table.getFieldList()', templateStart);
+  assert.ok(templateStart > 0 && fieldStart > templateStart);
+  assert.match(source, /state\.templates = \[\], state\.selectedTemplate = null, drawTemplates\(\), loadTemplates/);
+  assert.match(source, /if \(templateLoadKey !== key\) return/);
+});
+
 test('keeps linked records, exact placeholder matching and field diagnostics', () => {
   assert.match(source, /linkedSchemaCache\.get\(tableId\)/);
   assert.match(source, /item\.link_record_ids/);

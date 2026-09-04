@@ -8,6 +8,7 @@ let selectionBound = false;
 let selectionPoll;
 let selectionTimer;
 let selectionPolling = false;
+let templateLoadKey = '';
 const linkedSchemaCache = new Map();
 const state = { fields: [], viewFields: [], records: [], templates: [], selectedTemplate: null, context: null, table: null, view: null };
 const $ = id => document.getElementById(id);
@@ -82,8 +83,10 @@ async function readCurrentRecord(force = false) {
     let view = null; try { view = selection.viewId && table.getViewById ? await table.getViewById(selection.viewId) : await table.getActiveView(); } catch {}
     const checkedRecordIds = view?.getSelectedRecordIdList ? (await view.getSelectedRecordIdList().catch(() => [])).map(String) : [];
     const selectedRecordIds = currentReadRecordIds(selection, checkedRecordIds);
-    const tableId = String(selection.tableId || table.id || meta?.id || ''); const viewId = String(selection.viewId || view?.id || ''); const selectionKey = `${selection.baseId || ''}/${tableId}/${viewId}/${selectedRecordIds.join(',')}`; const previous = state.context;
+    const baseId = String(selection.baseId || ''); const tableId = String(selection.tableId || table.id || meta?.id || ''); const viewId = String(selection.viewId || view?.id || ''); const selectionKey = `${baseId}/${tableId}/${viewId}/${selectedRecordIds.join(',')}`; const previous = state.context;
     if (!force && previous?.selectionKey === selectionKey) return;
+    const scopeChanged = !previous || previous.baseId !== baseId || previous.tableId !== tableId;
+    const templatesTask = scopeChanged ? (state.templates = [], state.selectedTemplate = null, drawTemplates(), loadTemplates({ baseId, tableId })) : Promise.resolve();
     const sameScope = previous?.tableId === tableId && previous?.viewId === viewId && state.fields.length;
     if (!sameScope) {
       linkedSchemaCache.clear();
@@ -92,8 +95,8 @@ async function readCurrentRecord(force = false) {
       const fieldsById = new Map(state.fields.map(field => [field.id, field])); state.viewFields = visibleFieldIds.map(id => fieldsById.get(String(id))).filter(Boolean); if (!state.viewFields.length) state.viewFields = state.fields;
     }
     const names = sameScope ? [previous.baseName, previous.tableName, previous.viewName] : await Promise.all([bitable.base.getBaseName?.().catch(() => '') || '', table.getName().catch(() => ''), view?.getName?.().catch(() => '') || '']);
-    state.table = table; state.view = view; state.context = { baseId: String(selection.baseId || ''), tableId, viewId, selectionKey, baseName: String(names[0] || ''), tableName: String(names[1] || ''), viewName: String(names[2] || '当前记录') };
-    if (!previous || previous.baseId !== state.context.baseId || previous.tableId !== state.context.tableId) await loadTemplates();
+    state.table = table; state.view = view; state.context = { baseId, tableId, viewId, selectionKey, baseName: String(names[0] || ''), tableName: String(names[1] || ''), viewName: String(names[2] || '当前记录') };
+    await templatesTask;
     let ids = selectedRecordIds;
     if (!ids.length) { try { ids = (await table.getRecordIdList?.()).slice(0, 1); } catch {} }
     if (!ids.length) throw new Error('当前没有可读取的记录');
@@ -103,7 +106,7 @@ async function readCurrentRecord(force = false) {
   finally { reading = false; }
 }
 
-async function loadTemplates() { const query = state.context?.tableId ? `?baseId=${encodeURIComponent(state.context.baseId)}&tableId=${encodeURIComponent(state.context.tableId)}` : ''; const response = await fetch(appUrl(`/api/templates${query}`)); const result = await response.json(); state.templates = state.context?.tableId ? (result.templates || []) : []; if (!state.templates.some(item => item.id === state.selectedTemplate?.id)) state.selectedTemplate = state.templates[0] || null; drawTemplates(); updateAction(); }
+async function loadTemplates(scope = state.context) { const key = `${scope?.baseId || ''}/${scope?.tableId || ''}`; templateLoadKey = key; const query = scope?.tableId ? `?baseId=${encodeURIComponent(scope.baseId || '')}&tableId=${encodeURIComponent(scope.tableId)}` : ''; const response = await fetch(appUrl(`/api/templates${query}`)); const result = await response.json(); if (templateLoadKey !== key) return; state.templates = scope?.tableId ? (result.templates || []) : []; if (!state.templates.some(item => item.id === state.selectedTemplate?.id)) state.selectedTemplate = state.templates[0] || null; drawTemplates(); updateAction(); }
 const layoutText = value => Array.isArray(value) ? value.map(layoutText).join('') : value && typeof value === 'object' ? (value.text || '') : String(value || '');
 const cleanLayoutName = stripFieldMark;
 const matchingValue = (object, key) => { if (!object || typeof object !== 'object') return undefined; if (Object.hasOwn(object, key)) return object[key]; const normalized = normalizeKey(key); const match = Object.keys(object).find(candidate => legacyPlaceholderName(candidate) === key) ?? Object.keys(object).find(candidate => normalizeKey(candidate) === normalized); return match === undefined ? undefined : object[match]; };
