@@ -15,12 +15,14 @@ test('batch picker follows current view record and field order', async () => {
   assert.match(source, /selectionRecordIds\(current\)\.join\(','\)/);
   assert.match(source, /const sameScope = previous\?\.tableId === tableId/);
   assert.match(source, /linkedSchemaCache\.get\(tableId\)/);
-  assert.match(source, /relationItems\.flatMap/);
+  assert.match(source, /const relationItems = values\.flatMap/);
   assert.match(source, /rawRecord = await schema\.table\.getRecordById/);
   assert.match(source, /templateField\.name\] = row\[candidate\.name\]/);
   assert.match(source, /const templateFieldDiagnostics = \(\)/);
   assert.match(source, /字段 ID/);
-  assert.match(source, /item\?\.record_ids/);
+  assert.match(source, /item\.record_ids/);
+  assert.match(source, /item\.link_record_ids/);
+  assert.match(source, /meta\?\.property\?\.table_id/);
   assert.match(source, /Promise\.all\(state\.fields\.map\(async field/);
   assert.doesNotMatch(source, /queuedRead/);
   assert.match(source, /const matchingTemplateLoops = field/);
@@ -33,7 +35,9 @@ test('batch picker follows current view record and field order', async () => {
   assert.match(source, /fallbackRecordField = \(field, record\)/);
   assert.match(source, /for \(const target of \[record, recordId\]\)/);
   assert.match(source, /table\?\.getCellValue\?\.\(field\.id, recordId\)/);
-  assert.match(source, /schema\.table\.getCellValue\?\.\(field\.id, id\)/);
+  assert.match(source, /readField\(field, id, rawRecord, schema\.table\)/);
+  assert.match(source, /const hasCellValue = value/);
+  assert.doesNotMatch(source, /lineTotal \/ quantity/);
   assert.match(source, /\\u\{1F300\}-\\u\{1FAFF\}/);
   assert.match(source, /field\.dependencies\?\.length \|\| isTemplateLoopField\(field\)/);
   assert.match(source, /await readCurrentRecord\(true\); await toast\('模板已保存/);

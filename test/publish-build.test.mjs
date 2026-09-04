@@ -7,6 +7,7 @@ test('contains publishable dist output with relative assets', async () => {
   const pkg = JSON.parse(await fs.readFile(new URL('package.json', root), 'utf8'));
   const html = await fs.readFile(new URL('dist/index.html', root), 'utf8');
   const app = await fs.readFile(new URL('dist/app.js', root), 'utf8');
+  assert.equal(app, await fs.readFile(new URL('public/app.js', root), 'utf8'), '发布包必须包含最新前端');
   assert.equal(pkg.output, 'dist');
   assert.equal(pkg.scripts.build, 'node build.mjs');
   assert.match(html, /href="\.\/styles\.css"/);

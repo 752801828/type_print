@@ -99,7 +99,7 @@ test('renders numeric object values in procurement detail rows', async () => {
   docx.file('_rels/.rels', `<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/relationships'><Relationship Id='rId1' Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument' Target='word/document.xml'/></Relationships>`);
   docx.file('word/document.xml', `<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:tbl><w:tr><w:tc><w:p><w:r><w:t>{#__合同明细_采购明细}{单价_含税___}{/__合同明细_采购明细}</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:sectPr/></w:body></w:document>`);
   const item = await saveTemplate('采购合同含税.docx', docx.generate({ type: 'nodebuffer' })); let output;
-  try { output = await renderTemplate(item.id, [{ '合同明细-采购明细': [{ '单价(含税)💻': { value: 240 } }] }]); const xml = new PizZip(await fs.readFile(outputFile(output.id, 'docx'))).file('word/document.xml').asText(); assert.match(xml, /240/); } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+  try { output = await renderTemplate(item.id, [{ '合同明细-采购明细': [{ '单价_含税___': '', '单价(含税)💻': { value: 240 }, '实收数量💻': 2 }] }]); const xml = new PizZip(await fs.readFile(outputFile(output.id, 'docx'))).file('word/document.xml').asText(); assert.match(xml, /240/); } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
 
