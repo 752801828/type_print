@@ -9,8 +9,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, 'public');
 const sdkEntry = createRequire(import.meta.url).resolve('@lark-base-open/js-sdk');
 const sdkDir = path.dirname(sdkEntry);
-const docxPreviewDir = path.dirname(createRequire(import.meta.url).resolve('docx-preview'));
-const jszipDir = path.dirname(path.dirname(createRequire(import.meta.url).resolve('jszip')));
+const distVendorDir = path.join(here, 'dist', 'vendor');
 const port = Number(process.env.PORT || 4318);
 const host = process.env.HOST || '0.0.0.0';
 const build = 'feiye-independent';
@@ -26,7 +25,7 @@ const body = async (req, limit = 25 * 1024 * 1024) => {
 const safe = (base, relative) => { const target = path.resolve(base, relative); return target === base || target.startsWith(`${base}${path.sep}`) ? target : null; };
 const serve = async (req, res, pathname) => {
   const isVendor = pathname.startsWith('/vendor/lark-base/');
-  const vendorFile = pathname === '/vendor/docx-preview.min.js' ? path.join(docxPreviewDir, 'docx-preview.min.js') : pathname === '/vendor/jszip.min.js' ? path.join(jszipDir, 'dist', 'jszip.min.js') : null;
+  const vendorFile = ['/vendor/docx-preview.min.js', '/vendor/jszip.min.js'].includes(pathname) ? path.join(distVendorDir, path.basename(pathname)) : null;
   const relative = isVendor ? pathname.slice('/vendor/lark-base/'.length) : pathname === '/' || pathname === '/feishu' ? 'index.html' : pathname.slice(1);
   const target = vendorFile || safe(isVendor ? sdkDir : publicDir, relative);
   if (!target || (!isVendor && relative.includes('..'))) return send(res, 404, 'Not found', 'text/plain; charset=utf-8');
