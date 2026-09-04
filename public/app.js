@@ -114,6 +114,8 @@ const fieldMatchesTemplate = (fieldName, templateName) => templateNames(template
 const findTemplateField = (fields, name, allowFuzzy = true) => {
   const exact = fields.find(field => field.name === name) || fields.find(field => legacyPlaceholderName(field.name) === name);
   if (exact) return exact;
+  const normalizedName = normalizeKey(name); const normalizedExact = fields.find(field => normalizeKey(field.name) === normalizedName);
+  if (normalizedExact) return normalizedExact;
   for (const candidate of templateNames(name)) {
     const alias = fields.find(field => field.name === candidate || legacyPlaceholderName(field.name) === candidate);
     if (alias) return alias;
