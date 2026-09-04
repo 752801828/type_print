@@ -19,5 +19,7 @@ test('record panel opens a full online-layout render instead of a field table', 
   assert.match(html, /id="previewDocx"/);
   assert.match(html, /vendor\/docx-preview\.min\.js/);
   assert.match(source, /window\.docx\.renderAsync/);
+  assert.match(source, /\[\['word','Word'\],\['xlsx','Excel（XLSX）'\],\['pdf','PDF'\]\]/);
+  assert.match(source, /controller\.abort\(\), 45000/);
   assert.doesNotMatch(source, /docxPreviewHtml/);
 });

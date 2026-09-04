@@ -22,6 +22,7 @@ test('imports Feishu online layout export and preserves structured preview', asy
   try {
     const preview = await previewTemplate(item.id); assert.equal(preview.kind, 'layout'); assert.equal(preview.layout.document.pages.length, 1); assert.deepEqual(preview.fields, [{ marker: '', name: '客户名称' }]);
     const record = { '🔵客户名称': '测试客户', '🔵合同明细': [{ '🔴SKU': 'SKU-彩色', '🔴单价': '12.30' }] };
+    const recordPreview = await (await import('../lib/template-store.mjs')).previewRecord(item.id, record); assert.equal(recordPreview.kind, 'html'); assert.match(recordPreview.html, /测试客户/);
     const pdf = await renderTemplate(item.id, [record]); outputs.push(pdf); assert.equal(pdf.extension, 'pdf'); assert.match((await fs.readFile(outputFile(pdf.id, 'pdf'))).subarray(0, 4).toString(), /%PDF/);
     const word = await renderTemplate(item.id, [record], 'word'); outputs.push(word); assert.equal(word.extension, 'doc'); assert.match((await fs.readFile(outputFile(word.id, 'doc'))).toString('utf16le'), /测试客户/);
     const excel = await renderTemplate(item.id, [record], 'xlsx'); outputs.push(excel); assert.equal(excel.extension, 'xlsx'); assert.match(new PizZip(await fs.readFile(outputFile(excel.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText(), /测试客户/);
