@@ -14,7 +14,7 @@ const host = process.env.HOST || '0.0.0.0';
 const build = 'feiye-independent';
 const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.mjs':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.txt':'text/plain; charset=utf-8', '.layout':'application/json; charset=utf-8', '.svg':'image/svg+xml', '.doc':'application/msword', '.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xls':'application/vnd.ms-excel', '.pdf':'application/pdf', '.zip':'application/zip' };
 
-const send = (res, status, body, type = 'application/json; charset=utf-8') => { res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'x-feiye-build': build, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors https://feishu.cn https://*.feishu.cn https://larksuite.com https://*.larksuite.com http://localhost:* http://127.0.0.1:*" }); res.end(body); };
+const send = (res, status, body, type = 'application/json; charset=utf-8') => { res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,x-file-name,x-base-id,x-table-id,x-view-id,x-base-name,x-table-name', 'x-feiye-build': build, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors https://feishu.cn https://*.feishu.cn https://larksuite.com https://*.larksuite.com http://localhost:* http://127.0.0.1:*" }); res.end(body); };
 const json = (res, status, value) => send(res, status, JSON.stringify(value));
 const body = async (req, limit = 25 * 1024 * 1024) => {
   const chunks = []; let size = 0;
@@ -35,6 +35,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname === '/feishu' ? '/' : url.pathname.startsWith('/feishu/') ? url.pathname.slice('/feishu'.length) : url.pathname;
   try {
+    if (req.method === 'OPTIONS') return send(res, 204, '', 'text/plain; charset=utf-8');
     if (pathname === '/api/health' && req.method === 'GET') return json(res, 200, { ok: true, name: '排版打印 · 飞书扩展', port, build });
     if (pathname === '/api/templates' && req.method === 'GET') return json(res, 200, { templates: await listTemplates({ baseId: url.searchParams.get('baseId') || '', tableId: url.searchParams.get('tableId') || '' }) });
     if (pathname === '/api/templates' && req.method === 'POST') {
