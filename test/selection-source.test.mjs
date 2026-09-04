@@ -16,6 +16,9 @@ test('selection polling and record loading include checked IDs without scanning 
   assert.match(source, /view\.getSelectedRecordIdList\(\)/);
   assert.match(source, /selectedRecordIds\.join\(','\)/);
   assert.match(source, /currentReadRecordIds\(current, checked\)/);
+  assert.match(source, /Promise\.all\(\[sdk\.bitable\.base\.getSelection\(\), state\.view\?\.getSelectedRecordIdList/);
+  assert.match(source, /\}, 200\);/);
+  assert.doesNotMatch(source, /\}, 700\);/);
   assert.match(source, /activeRecordFields\(\)\.map/);
   assert.match(source, /getFieldList\(\)\)\.map\(basicFieldName\)/);
   assert.doesNotMatch(source, /getDependencyFields|getRecords\(\{ pageSize: 5000|getRecordListByPage/);
