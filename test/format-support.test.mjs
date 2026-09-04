@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs/promises';
 import PizZip from 'pizzip';
-import { saveTemplate, renameTemplate, renderTemplate, previewTemplate, removeTemplate, outputFile, listTemplates } from '../lib/template-store.mjs';
+import { saveTemplate, renderTemplate, previewTemplate, removeTemplate, outputFile, listTemplates } from '../lib/template-store.mjs';
 
 test('imports and exports XLSX, XLS and PDF formats', async () => {
   const xlsx = new PizZip(); xlsx.file('xl/workbook.xml', '<workbook/>'); xlsx.file('xl/worksheets/sheet1.xml', '<sheet><c>{编号}</c></sheet>');
@@ -21,7 +21,6 @@ test('imports Feishu online layout export and preserves structured preview', asy
   const outputs = [];
   try {
     const preview = await previewTemplate(item.id); assert.equal(preview.kind, 'layout'); assert.equal(preview.layout.document.pages.length, 1); assert.deepEqual(preview.fields, [{ marker: '', name: '客户名称' }]);
-    const renamed = await renameTemplate(item.id, '客户模板'); assert.equal(renamed.name, '客户模板.txt');
     const record = { '🔵客户名称': '测试客户', '🔵合同明细': [{ '🔴SKU': 'SKU-彩色', '🔴单价': '12.30' }] };
     const pdf = await renderTemplate(item.id, [record]); outputs.push(pdf); assert.equal(pdf.extension, 'pdf'); assert.match((await fs.readFile(outputFile(pdf.id, 'pdf'))).subarray(0, 4).toString(), /%PDF/);
     const word = await renderTemplate(item.id, [record], 'word'); outputs.push(word); assert.equal(word.extension, 'doc'); assert.match((await fs.readFile(outputFile(word.id, 'doc'))).toString('utf16le'), /测试客户/);

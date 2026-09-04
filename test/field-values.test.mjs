@@ -9,7 +9,7 @@ const source = await fs.readFile(new URL('../public/app.js', import.meta.url), '
 function frontend() {
   const context = vm.createContext({ location: { pathname: '/feishu', hostname: 'localhost' } });
   vm.runInContext(source.slice(0, source.indexOf("$('createTemplate').onclick")) +
-    '\nthis.api = { state, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope };', context);
+    '\nthis.api = { state, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields };', context);
   return context.api;
 }
 
@@ -54,6 +54,14 @@ test('linked row to print payload uses real price and quantity, never derives a 
   assert.equal(details[1]['单价_含税___'], '');
   assert.equal(details[2]['单价_含税___'], '0');
   assert.equal(details[2]['实收数量__'], '0');
+});
+
+test('record loading keeps only the label and template fields', () => {
+  const api = frontend();
+  api.state.fields = [{ id: 'label', name: '采购合同' }, { id: 'needed', name: '供应商' }, ...Array.from({ length: 50 }, (_, index) => ({ id: `unused-${index}`, name: `无关字段${index}` }))];
+  api.state.viewFields = [api.state.fields[0]];
+  api.state.selectedTemplate = { fields: [{ marker: '', name: '__供应商' }] };
+  assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'needed']);
 });
 
 test('DOCX renderer matches encoded names inside loops and keeps absent price blank', async () => {

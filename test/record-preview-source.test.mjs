@@ -10,13 +10,10 @@ test('record panel opens a full online-layout render instead of a field table', 
   assert.match(source, /block\.table\.dynamicRows/);
   assert.match(html, /id="outputFormat"/);
   assert.match(source, /await openPreview\(result\.template\.id\)/);
-  assert.match(source, /data-rename-id/);
+  assert.doesNotMatch(source, /data-rename-id|renameTemplateItem/);
   assert.match(source, /data-delete-id/);
   assert.match(source, /method: 'DELETE'/);
-  assert.match(html, /id="variableGuideDialog"/);
-  assert.match(source, /openVariableGuide\('fields'\)/);
-  assert.match(source, /\{#!是否新人\}/);
-  assert.match(source, /\{=\{\{ \}\}=\}/);
+  assert.doesNotMatch(html, /variableGuideDialog|dataSourceVariables|variableQuickRef|scanTemplate|batchDialog/);
   assert.match(source, /record-preview/);
   assert.match(source, /srcdoc = data\.html/);
 });
