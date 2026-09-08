@@ -81,6 +81,18 @@ test('fills namespace-prefixed XLSX string cells stored in v nodes', async () =>
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('keeps self-closing XLSX cells separate from following template cells', async () => {
+  const zip = new PizZip();
+  zip.file('xl/workbook.xml', '<workbook/>');
+  zip.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" s="1"/><c r="B1" s="1" t="inlineStr"><is><t>{编号}</t></is></c></row></sheetData></worksheet>');
+  const item = await saveTemplate('self-closing.xlsx', zip.generate({ type: 'nodebuffer' })); let output;
+  try {
+    output = await renderTemplate(item.id, [{ 编号: 'A-100' }]);
+    const xml = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText();
+    assert.match(xml, /<c r="A1" s="1"\/>/); assert.match(xml, /<c r="B1" s="1" t="inlineStr">/); assert.doesNotMatch(xml, /<c[^>]*\/\s+t=/);
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('expands XLSX loops spanning multiple template rows', async () => {
   const zip = new PizZip();
   zip.file('xl/workbook.xml', '<workbook/>');
