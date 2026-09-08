@@ -12,6 +12,7 @@
       <div id="categoryList" class="category-list"><div class="side-empty">暂无模板</div></div>
       <section class="settings-panel" id="settingsPanel" aria-hidden="true" inert><h2>模板设置</h2><p>导出文件名可插入当前表格字段。</p><label>文件名规则<input id="outputNamePattern" maxlength="120" placeholder="例如：{合同编号}-{供应商}"></label><div id="nameFieldList" class="name-field-list"></div><div class="settings-actions"><button id="cancelSettings">取消</button><button id="saveSettings" class="primary">保存</button></div></section>
     </aside>
+    <button class="menu-backdrop" id="menuBackdrop" tabindex="-1" aria-hidden="true" aria-label="关闭模板菜单"></button>
     <main class="content">
       <div class="content-toolbar"><div class="crumb"><button class="menu-pill" id="menuToggle">☰　模板</button><span class="type-pill green" id="templateType">DOCX</span><strong>排版打印</strong></div><div class="toolbar-actions"><button class="generate-top" id="generateTop">生成文件</button></div></div>
       <section class="doc-page">
