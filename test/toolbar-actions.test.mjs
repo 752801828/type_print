@@ -8,10 +8,12 @@ test('keeps template import separate from file generation', async () => {
   const source = await fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8');
   assert.match(html, /id="createTemplate">＋　导入模板/);
   assert.ok(html.indexOf('id="createTemplate"') < html.indexOf('id="categoryList"'));
-  assert.doesNotMatch(html, />更多<|重命名|性能扫描|查看数据源变量|变量指令速查|变量使用方法|进入批量模式/);
-  assert.match(html, /id="settingsPanel"/);
+  assert.doesNotMatch(html, /性能扫描|查看数据源变量|变量指令速查|变量使用方法|进入批量模式/);
+  assert.match(html, /id="moreActions"[^>]*>更多/);
+  assert.match(html, /id="moreMenu"/);
   assert.match(html, /id="menuBackdrop"/);
-  assert.doesNotMatch(html, /id="settingsDialog"/);
+  assert.match(html, /id="settingsDialog"/);
+  assert.doesNotMatch(html, /id="settingsPanel"/);
   assert.match(source, /class="export-template"[^>]*download=/);
   assert.match(source, /document\.addEventListener\('click'/);
   assert.match(source, /closeTemplateSettings/);
@@ -19,6 +21,11 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /row\.oncontextmenu = event => openTemplateContextMenu/);
   assert.match(source, /编辑排版名称|renameTemplateItem/);
   assert.match(source, /duplicateTemplateItem/);
+  assert.match(html, /id="moreSettings"[^>]*>[\s\S]*排版设置/);
+  assert.match(html, /id="moreDuplicate"[^>]*>[\s\S]*复制模板/);
+  assert.match(html, /id="moreDelete"[^>]*>[\s\S]*删除模板/);
+  assert.match(html, /id="templateName"/);
+  assert.match(html, /id="addNameVariable"[^>]*>＋ 添加变量/);
   assert.match(html, /aria-autocomplete="list"/);
   assert.match(source, /normalizeKey\(name\)\.includes\(normalized\)/);
   assert.match(source, /filenameFieldFragment/);
@@ -26,8 +33,10 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /button\.onmousedown = event => event\.preventDefault\(\)/);
   assert.match(source, /event\.stopPropagation\(\)/);
   assert.match(html, /<\/label><div id="nameFieldList"/);
+  assert.doesNotMatch(source, /settings-template|data-settings-id|data-delete-id/);
   const styles = await fs.readFile(new URL('../public/styles.css', import.meta.url), 'utf8'); assert.match(styles, /\.library-sidebar\{position:fixed;[^}]*width:250px;[^}]*transform:translateX\(0\)/); assert.match(styles, /\.template-context-menu\{position:fixed/);
   assert.match(source, /method: 'PATCH'/);
+  assert.match(source, /name: \$\('templateName'\)\.value, outputNamePattern/);
   assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);
   assert.match(source, /id="generationProgress"/);
   assert.match(source, /\$\('automaticDownload'\)\.click\(\)/);
