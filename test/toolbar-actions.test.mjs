@@ -19,6 +19,10 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /row\.oncontextmenu = event => openTemplateContextMenu/);
   assert.match(source, /编辑排版名称|renameTemplateItem/);
   assert.match(source, /duplicateTemplateItem/);
+  assert.match(html, /aria-autocomplete="list"/);
+  assert.match(source, /normalizeKey\(name\)\.includes\(normalized\)/);
+  assert.match(source, /filenameFieldFragment/);
+  assert.match(source, /setRangeText\(`\{\$\{button\.dataset\.nameField\}\}`/);
   const styles = await fs.readFile(new URL('../public/styles.css', import.meta.url), 'utf8'); assert.match(styles, /\.library-sidebar\{position:fixed;[^}]*width:250px;[^}]*transform:translateX\(0\)/); assert.match(styles, /\.template-context-menu\{position:fixed/);
   assert.match(source, /method: 'PATCH'/);
   assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);

@@ -38,6 +38,13 @@ test('loads the new table template menu before waiting for field metadata', () =
   assert.match(source, /if \(templateLoadKey !== key\) return/);
 });
 
+test('filename rule suggests fields containing the typed fragment', () => {
+  const context = vm.createContext({ normalizeKey: value => String(value).replace(/[\s_（）()]/g, '').toLowerCase() });
+  vm.runInContext(source.slice(source.indexOf('function matchingFilenameFields'), source.indexOf('function drawNameFieldSuggestions')) + '\nthis.matchingFilenameFields = matchingFilenameFields;', context);
+  assert.deepEqual([...context.matchingFilenameFields([{ name: '单价(含税)' }, { name: '未税金额' }, { name: '含税总价' }], '含税')], ['含税总价', '单价(含税)']);
+  assert.deepEqual([...context.matchingFilenameFields([{ name: '客户名称' }], '')], []);
+});
+
 test('keeps linked records, exact placeholder matching and field diagnostics', () => {
   assert.match(source, /linkedSchemaCache\.get\(tableId\)/);
   assert.match(source, /item\.link_record_ids/);
