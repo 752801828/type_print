@@ -14,6 +14,8 @@ test('contains publishable dist output with relative assets', async () => {
   assert.match(html, /src="\.\/app\.js"/);
   assert.doesNotMatch(html, /(?:href|src)="\/feishu\//);
   assert.match(app, /https:\/\/gzwy\.online\/feishu/);
+  assert.match(app, /const sdkUrl = appUrl\('\/vendor\/lark-base\/index\.mjs'\)/);
+  assert.doesNotMatch(app, /new URL\('\.\/vendor\/lark-base\/index\.mjs'/);
   await fs.access(new URL('dist/vendor/lark-base/index.mjs', root));
   await fs.access(new URL('dist/vendor/docx-preview.min.js', root));
   await fs.access(new URL('dist/vendor/jszip.min.js', root));

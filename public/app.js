@@ -2,7 +2,7 @@ let sdk;
 const servedByOwnServer = location.pathname.startsWith('/feishu') || ['127.0.0.1', 'localhost'].includes(location.hostname);
 const basePath = location.pathname.startsWith('/feishu') ? '/feishu' : servedByOwnServer ? '' : 'https://gzwy.online/feishu';
 const appUrl = path => `${basePath}${path}`;
-const sdkUrl = servedByOwnServer ? appUrl('/vendor/lark-base/index.mjs') : new URL('./vendor/lark-base/index.mjs', location.href).href;
+const sdkUrl = appUrl('/vendor/lark-base/index.mjs');
 let readGeneration = 0;
 let reading = false;
 let pendingRead = null;
