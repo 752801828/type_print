@@ -79,6 +79,15 @@ test('record loading keeps only the label and template fields', () => {
   assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'needed']);
 });
 
+test('record loading includes filename fields and formats Feishu dates', async () => {
+  const api = frontend();
+  api.state.fields = [{ id: 'label', name: '采购合同' }, { id: 'payee', name: '收款人' }, { id: 'date', name: '合同创建日期', type: 5, api: { getCellString: async () => '2026/09/08' } }];
+  api.state.viewFields = [api.state.fields[0]];
+  api.state.selectedTemplate = { fields: [], outputNamePattern: '{收款人}-{合同创建日期}' };
+  assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'payee', 'date']);
+  assert.equal(await api.readField(api.state.fields[2], 'record', { fields: { date: 1788796800000 } }, {}), '2026/09/08');
+});
+
 test('field diagnostics accept matching fields from the linked detail table', () => {
   const api = frontend();
   api.state.fields = [{ id: 'details', name: '合同明细-采购明细' }];
