@@ -43,6 +43,7 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /method: 'PATCH'/);
   assert.match(source, /name: \$\('templateName'\)\.value, outputNamePattern/);
   assert.match(source, /编辑排版名称|renameTemplateItem/);
+  assert.match(styles, /\.content-toolbar\{position:sticky;top:0/);
   assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);
   assert.match(source, /id="generationProgress"/);
   assert.match(source, /\$\('automaticDownload'\)\.click\(\)/);
