@@ -23,3 +23,10 @@ test('renders one DOCX and selected records as ZIP', async () => {
     outputs.push(one, many);
   } finally { for (const output of outputs) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
+
+test('uses related-table values in the exported filename', async () => {
+  const zip = new PizZip(); zip.file('[Content_Types].xml', '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'); zip.file('word/document.xml', '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>关联字段文件名</w:t></w:r></w:p></w:body></w:document>');
+  const item = await saveTemplate('relation.docx', zip.generate({ type: 'nodebuffer' }), { outputNamePattern: '{合同明细.供应商}' }); let output;
+  try { output = await renderTemplate(item.id, [{ 合同明细: [{ 供应商: '甲公司' }, { 供应商: '乙公司' }] }]); assert.equal(output.name, '甲公司_乙公司.docx'); }
+  finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});

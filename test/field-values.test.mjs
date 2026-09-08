@@ -9,7 +9,7 @@ const source = await fs.readFile(new URL('../public/app.js', import.meta.url), '
 function frontend() {
   const context = vm.createContext({ location: { pathname: '/feishu', hostname: 'localhost' } });
   vm.runInContext(source.slice(0, source.indexOf("$('createTemplate').onclick")) +
-    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, templateFieldDiagnostics, readSchema, readField, readRawField };', context);
+    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, templateFieldDiagnostics, readSchema, readField, readRawField, variableFields };', context);
   return context.api;
 }
 
@@ -86,6 +86,16 @@ test('record loading includes filename fields and formats Feishu dates', async (
   api.state.selectedTemplate = { fields: [], outputNamePattern: '{收款人}-{合同创建日期}' };
   assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'payee', 'date']);
   assert.equal(await api.readField(api.state.fields[2], 'record', { fields: { date: 1788796800000 } }, {}), '2026/09/08');
+});
+
+test('record loading includes the relation used by a linked filename field', () => {
+  const api = frontend();
+  api.state.fields = [{ id: 'label', name: '采购合同' }, { id: 'relation', name: '合同明细', relationTableId: 'linked' }];
+  api.state.viewFields = [api.state.fields[0]];
+  api.state.selectedTemplate = { fields: [], outputNamePattern: '{合同明细.供应商}' };
+  assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'relation']);
+  api.linkedSchemaCache.set('linked', { tableName: '采购明细表', fields: [{ id: 'supplier', name: '供应商' }] });
+  assert.ok(api.variableFields().some(field => field.name === '合同明细.供应商' && field.label === '{合同明细.供应商}'));
 });
 
 test('field diagnostics accept matching fields from the linked detail table', () => {
