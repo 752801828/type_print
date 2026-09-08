@@ -8,7 +8,10 @@ test('keeps template import separate from file generation', async () => {
   const source = await fs.readFile(new URL('../public/app.js', import.meta.url), 'utf8');
   assert.match(html, /id="createTemplate">＋　导入模板/);
   assert.ok(html.indexOf('id="createTemplate"') < html.indexOf('id="categoryList"'));
-  assert.doesNotMatch(html, />更多<|>导出|重命名|性能扫描|模板设置|查看数据源变量|变量指令速查|变量使用方法|进入批量模式/);
+  assert.doesNotMatch(html, />更多<|>导出|重命名|性能扫描|查看数据源变量|变量指令速查|变量使用方法|进入批量模式/);
+  assert.match(html, /id="settingsDialog"/);
+  assert.match(source, /method: 'PATCH'/);
+  assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);
   assert.match(source, /\$\('createTemplate'\)\.onclick = \(\) => \$\('templateFile'\)\.click\(\)/);
   assert.match(source, /\$\('generateTop'\)\.onclick = \(\) => state\.selectedTemplate && state\.records\.length \? \$\('generate'\)\.click\(\) : toast/);
   assert.doesNotMatch(source, /renameTemplate|openVariableGuide|renderVariableGuide|openBatchDialog/);

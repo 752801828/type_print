@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs/promises';
 import PizZip from 'pizzip';
-import { saveTemplate, renderTemplate, removeTemplate, outputFile } from '../lib/template-store.mjs';
+import { saveTemplate, updateTemplate, renderTemplate, removeTemplate, outputFile } from '../lib/template-store.mjs';
 
 test('renders one DOCX and selected records as ZIP', async () => {
   const zip = new PizZip();
@@ -13,9 +13,11 @@ test('renders one DOCX and selected records as ZIP', async () => {
   assert.ok(item.fields.some(field => field.name === '状态' && field.marker === '?')); assert.ok(item.fields.every(field => field.name !== '=' && !field.name.includes('{')));
   const outputs = [];
   try {
+    await updateTemplate(item.id, { outputNamePattern: '{客户}-合同' });
     const one = await renderTemplate(item.id, [{ 客户: '甲', 状态: '通过', 是否新人: false, items: [{ name: '子项' }] }]);
     const many = await renderTemplate(item.id, [{ 客户: '甲', items: [{ name: '子项' }] }, { 客户: '乙', items: [] }]);
     assert.equal(one.extension, 'docx'); assert.equal(many.extension, 'zip');
+    assert.equal(one.name, '甲-合同.docx'); assert.equal(many.name, '甲-合同-2份.zip');
     const renderedXml = new PizZip(await fs.readFile(outputFile(one.id, one.extension))).file('word/document.xml').asText();
     assert.match(renderedXml, /甲/); assert.match(renderedXml, /1:子项/); assert.match(renderedXml, /条件成立/); assert.match(renderedXml, /旧客户/); assert.doesNotMatch(renderedXml, /undefined/);
     outputs.push(one, many);

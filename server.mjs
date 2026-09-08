@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { listTemplates, saveTemplate, removeTemplate, renderTemplate, previewTemplate, previewRecord, templateFile, outputFile } from './lib/template-store.mjs';
+import { listTemplates, saveTemplate, updateTemplate, removeTemplate, renderTemplate, previewTemplate, previewRecord, templateFile, outputFile } from './lib/template-store.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, 'public');
@@ -15,7 +15,7 @@ const host = process.env.HOST || '0.0.0.0';
 const build = 'feiye-independent';
 const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.mjs':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.txt':'text/plain; charset=utf-8', '.layout':'application/json; charset=utf-8', '.svg':'image/svg+xml', '.doc':'application/msword', '.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xls':'application/vnd.ms-excel', '.pdf':'application/pdf', '.zip':'application/zip' };
 
-const send = (res, status, body, type = 'application/json; charset=utf-8') => { res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,x-file-name,x-base-id,x-table-id,x-view-id,x-base-name,x-table-name', 'x-feiye-build': build, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors https://feishu.cn https://*.feishu.cn https://larksuite.com https://*.larksuite.com http://localhost:* http://127.0.0.1:*" }); res.end(body); };
+const send = (res, status, body, type = 'application/json; charset=utf-8') => { res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS', 'access-control-allow-headers': 'content-type,x-file-name,x-base-id,x-table-id,x-view-id,x-base-name,x-table-name', 'x-feiye-build': build, 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors https://feishu.cn https://*.feishu.cn https://larksuite.com https://*.larksuite.com http://localhost:* http://127.0.0.1:*" }); res.end(body); };
 const json = (res, status, value) => send(res, status, JSON.stringify(value));
 const body = async (req, limit = 25 * 1024 * 1024) => {
   const chunks = []; let size = 0;
@@ -48,12 +48,13 @@ const server = http.createServer(async (req, res) => {
       return json(res, 201, { template: item });
     }
     const templateMatch = pathname.match(/^\/api\/templates\/([\w-]+)$/);
+    if (templateMatch && req.method === 'PATCH') return json(res, 200, { template: await updateTemplate(templateMatch[1], JSON.parse((await body(req, 64 * 1024)).toString('utf8'))) });
     if (templateMatch && req.method === 'DELETE') return json(res, 200, { deleted: await removeTemplate(templateMatch[1]) });
     const templateFileMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/file$/);
     if (templateFileMatch && req.method === 'GET') {
       const templates = await listTemplates(); const item = templates.find(entry => entry.id === templateFileMatch[1]);
       if (!item) return json(res, 404, { error: 'TEMPLATE_NOT_FOUND' });
-      const extension = item.extension || path.extname(item.fileName); const file = await fs.readFile(templateFile(item.id, extension)); res.writeHead(200, { 'content-type': mime[extension] || 'application/octet-stream', 'content-disposition': `inline; filename="${encodeURIComponent(item.name)}"`, 'cache-control': 'no-store' }); return res.end(file);
+      const extension = item.extension || path.extname(item.fileName); const file = await fs.readFile(templateFile(item.id, extension)); res.writeHead(200, { 'content-type': mime[extension] || 'application/octet-stream', 'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(item.name)}`, 'content-length': file.length, 'cache-control': 'no-store' }); return res.end(file);
     }
     const templatePreviewMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/preview$/);
     if (templatePreviewMatch && req.method === 'GET') return json(res, 200, await previewTemplate(templatePreviewMatch[1]));
@@ -69,7 +70,8 @@ const server = http.createServer(async (req, res) => {
       for (const candidate of ['doc', 'docx', 'xlsx', 'xls', 'pdf', 'zip']) { try { file = await fs.readFile(outputFile(outputMatch[1], candidate)); extension = candidate; break; } catch {} }
       if (!file) return json(res, 404, { error: 'OUTPUT_NOT_FOUND' });
       const type = mime[`.${extension}`] || 'application/octet-stream';
-      res.writeHead(200, { 'content-type': type, 'content-disposition': `attachment; filename="feiye-${outputMatch[1]}.${extension}"`, 'cache-control': 'no-store' });
+      const requestedName = String(url.searchParams.get('name') || `feiye-${outputMatch[1]}.${extension}`).replace(/[\r\n]/g, '').slice(0, 180);
+      res.writeHead(200, { 'content-type': type, 'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(requestedName)}`, 'content-length': file.length, 'cache-control': 'no-store' });
       return res.end(file);
     }
     if (pathname.startsWith('/api/')) return json(res, 404, { error: 'NOT_FOUND' });
