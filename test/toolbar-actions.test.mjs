@@ -16,14 +16,17 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /document\.addEventListener\('click'/);
   assert.match(source, /closeTemplateSettings/);
   assert.match(source, /\$\('menuBackdrop'\)\.onclick = \(\) => setMenuOpen\(false\)/);
-  assert.match(await fs.readFile(new URL('../public/styles.css', import.meta.url), 'utf8'), /\.library-sidebar\{position:fixed;[^}]*transform:translateX\(0\)/);
+  assert.match(source, /row\.oncontextmenu = event => openTemplateContextMenu/);
+  assert.match(source, /编辑排版名称|renameTemplateItem/);
+  assert.match(source, /duplicateTemplateItem/);
+  const styles = await fs.readFile(new URL('../public/styles.css', import.meta.url), 'utf8'); assert.match(styles, /\.library-sidebar\{position:fixed;[^}]*width:250px;[^}]*transform:translateX\(0\)/); assert.match(styles, /\.template-context-menu\{position:fixed/);
   assert.match(source, /method: 'PATCH'/);
   assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);
   assert.match(source, /id="generationProgress"/);
   assert.match(source, /\$\('automaticDownload'\)\.click\(\)/);
   assert.match(source, /\$\('createTemplate'\)\.onclick = \(\) => \$\('templateFile'\)\.click\(\)/);
   assert.match(source, /\$\('generateTop'\)\.onclick = \(\) => state\.selectedTemplate && state\.records\.length \? \$\('generate'\)\.click\(\) : toast/);
-  assert.doesNotMatch(source, /renameTemplate|openVariableGuide|renderVariableGuide|openBatchDialog/);
+  assert.doesNotMatch(source, /openVariableGuide|renderVariableGuide|openBatchDialog/);
 });
 
 test('import selects the template without opening a preview window', async () => {

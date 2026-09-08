@@ -8,6 +8,7 @@ test('server is independent and fixed to the new port', () => {
   assert.match(source, /process\.env\.PORT \|\| 4318/);
   assert.doesNotMatch(source, /template-print-demo|印序|4177/);
   assert.match(source, /req\.method === 'PATCH'/);
+  assert.match(source, /duplicateTemplateMatch && req\.method === 'POST'/);
   assert.match(source, /content-disposition': `attachment; filename\*=UTF-8''/);
   assert.match(source, /'content-length': file\.length/);
 });

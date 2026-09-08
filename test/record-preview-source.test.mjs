@@ -10,7 +10,7 @@ test('record panel opens a full online-layout render instead of a field table', 
   assert.match(source, /block\.table\.dynamicRows/);
   assert.match(html, /id="outputFormat"/);
   assert.match(source, /openPreview\(button\.dataset\.previewId\)/);
-  assert.doesNotMatch(source, /data-rename-id|renameTemplateItem/);
+  assert.doesNotMatch(source, /data-rename-id/);
   assert.match(source, /data-delete-id/);
   assert.match(source, /method: 'DELETE'/);
   assert.doesNotMatch(html, /variableGuideDialog|dataSourceVariables|variableQuickRef|scanTemplate|batchDialog/);

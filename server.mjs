@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { listTemplates, saveTemplate, updateTemplate, removeTemplate, renderTemplate, previewTemplate, previewRecord, templateFile, outputFile } from './lib/template-store.mjs';
+import { listTemplates, saveTemplate, updateTemplate, duplicateTemplate, removeTemplate, renderTemplate, previewTemplate, previewRecord, templateFile, outputFile } from './lib/template-store.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, 'public');
@@ -47,6 +47,8 @@ const server = http.createServer(async (req, res) => {
       const item = await saveTemplate(fileName, await body(req), { baseId: header('x-base-id'), tableId: header('x-table-id'), viewId: header('x-view-id'), baseName: header('x-base-name'), tableName: header('x-table-name') });
       return json(res, 201, { template: item });
     }
+    const duplicateTemplateMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/duplicate$/);
+    if (duplicateTemplateMatch && req.method === 'POST') return json(res, 201, { template: await duplicateTemplate(duplicateTemplateMatch[1]) });
     const templateMatch = pathname.match(/^\/api\/templates\/([\w-]+)$/);
     if (templateMatch && req.method === 'PATCH') return json(res, 200, { template: await updateTemplate(templateMatch[1], JSON.parse((await body(req, 64 * 1024)).toString('utf8'))) });
     if (templateMatch && req.method === 'DELETE') return json(res, 200, { deleted: await removeTemplate(templateMatch[1]) });
