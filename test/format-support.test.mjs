@@ -93,6 +93,19 @@ test('keeps self-closing XLSX cells separate from following template cells', asy
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('marks XLSX formulas for a full recalculation when opened', async () => {
+  const zip = new PizZip();
+  zip.file('xl/workbook.xml', '<workbook><calcPr calcId="191029" concurrentCalc="0"/></workbook>');
+  zip.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>{仓库}</t></is></c><c r="B1"><f>VLOOKUP(A1,地址库!A:B,2,0)</f><v>#N/A</v></c></row></sheetData></worksheet>');
+  const item = await saveTemplate('formula.xlsx', zip.generate({ type: 'nodebuffer' })); let output;
+  try {
+    output = await renderTemplate(item.id, [{ 仓库: 'GYR2' }]); const generated = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx')));
+    const workbook = generated.file('xl/workbook.xml').asText(); const sheet = generated.file('xl/worksheets/sheet1.xml').asText();
+    assert.match(workbook, /calcMode="auto"/); assert.match(workbook, /fullCalcOnLoad="1"/); assert.match(workbook, /forceFullCalc="1"/); assert.match(workbook, /calcCompleted="0"/);
+    assert.match(sheet, /<f>VLOOKUP\(A1,地址库!A:B,2,0\)<\/f>/); assert.match(sheet, />GYR2<\/t>/);
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('expands XLSX loops spanning multiple template rows', async () => {
   const zip = new PizZip();
   zip.file('xl/workbook.xml', '<workbook/>');
