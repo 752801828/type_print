@@ -9,7 +9,7 @@ const source = await fs.readFile(new URL('../public/app.js', import.meta.url), '
 function frontend() {
   const context = vm.createContext({ location: { pathname: '/feishu', hostname: 'localhost' } });
   vm.runInContext(source.slice(0, source.indexOf("$('createTemplate').onclick")) +
-    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, templateFieldDiagnostics, readSchema, readField, readRawField, variableFields };', context);
+    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, templateFieldDiagnostics, readSchema, readField, readRawField, variableFields, text };', context);
   return context.api;
 }
 
@@ -27,6 +27,8 @@ test('legacy encoding preserves every underscore and takes priority over similar
   api.state.fields = [{ id: 'invoice', name: '🔴发票发货方信息' }]; api.state.selectedTemplate = { fields: [] };
   const scope = api.recordScope({ fields: { invoice: '广州公司' }, loops: {} });
   assert.equal(scope['🔴发票发货方信息'], '广州公司'); assert.equal(scope['发票发货方信息'], '广州公司'); assert.equal(scope['__发票发货方信息'], '广州公司');
+  assert.equal(api.text({ type: 'text', text: '' }), '');
+  assert.equal(api.text([{ type: 'text', text: '' }, { type: 'text', text: '有效内容' }]), '有效内容');
 });
 
 test('linked row to print payload uses real price and quantity, never derives a missing price', async () => {
