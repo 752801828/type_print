@@ -15,6 +15,13 @@ test('imports and exports XLSX, XLS and PDF formats', async () => {
   } finally { for (const output of outputs) await fs.rm(outputFile(output.id, output.extension), { force: true }); for (const item of saved) await removeTemplate(item.id); }
 });
 
+test('XLSX accepts original field names and legacy underscore placeholders together', async () => {
+  const xlsx = new PizZip(); xlsx.file('xl/workbook.xml', '<workbook/>'); xlsx.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>{🔵发票发货方信息}|{发票发货方信息}|{__发票发货方信息}</t></is></c></row></sheetData></worksheet>');
+  const item = await saveTemplate('raw-field.xlsx', xlsx.generate({ type: 'nodebuffer' })); let output;
+  try { output = await renderTemplate(item.id, [{ '🔴发票发货方信息': '广州公司' }]); const sheet = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText(); assert.match(sheet, /广州公司\|广州公司\|广州公司/); }
+  finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('imports Feishu online layout export and preserves structured preview', async () => {
   const source = Buffer.from(JSON.stringify({ name: '在线模板', content: JSON.stringify({ document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 1, content: [{ type: 'paragraph', children: [{ text: '客户：' }, { type: 'variable', name: ['🔵客户名称'] }] }] }] }] }] }] } }) })).toString('base64');
   const item = await saveTemplate('online.txt', Buffer.from(source), { baseId: 'layout-base', tableId: 'layout-table' });
