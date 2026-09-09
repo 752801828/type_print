@@ -30,6 +30,7 @@ test('legacy encoding preserves every underscore and takes priority over similar
   assert.equal(api.text({ type: 'text', text: '' }), '');
   assert.equal(api.text([{ type: 'text', text: '' }, { type: 'text', text: '有效内容' }]), '有效内容');
   assert.equal(api.text([{ type: 'text', text: 'Attn(联系人):Leon LI\n' }, { type: 'text', text: 'TEL(电话):+86 13660195555\n' }]), 'Attn(联系人):Leon LI\nTEL(电话):+86 13660195555\n');
+  assert.equal(api.text({ type: 'text', text: '\u202A+59172776633\u202C' }), '+59172776633');
 });
 
 test('linked row to print payload uses real price and quantity, never derives a missing price', async () => {
@@ -87,11 +88,12 @@ test('record loading keeps only the label and template fields', () => {
 
 test('record loading includes filename fields and formats Feishu dates', async () => {
   const api = frontend();
-  api.state.fields = [{ id: 'label', name: '采购合同' }, { id: 'payee', name: '收款人' }, { id: 'date', name: '合同创建日期', type: 5, api: { getCellString: async () => '2026/09/08' } }];
+  api.state.fields = [{ id: 'label', name: '采购合同' }, { id: 'payee', name: '收款人' }, { id: 'date', name: '合同创建日期', type: 5, api: { getCellString: async () => '2026/09/08' } }, { id: 'formula', name: '收货地址', type: 19, api: { getCellString: async () => 'Room 401, Guangzhou' } }];
   api.state.viewFields = [api.state.fields[0]];
-  api.state.selectedTemplate = { fields: [], outputNamePattern: '{收款人}-{合同创建日期}' };
-  assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'payee', 'date']);
+  api.state.selectedTemplate = { fields: [], outputNamePattern: '{收款人}-{合同创建日期}-{收货地址}' };
+  assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'payee', 'date', 'formula']);
   assert.equal(await api.readField(api.state.fields[2], 'record', { fields: { date: 1788796800000 } }, {}), '2026/09/08');
+  assert.equal(await api.readField(api.state.fields[3], 'record', { fields: { formula: null } }, {}), 'Room 401, Guangzhou');
 });
 
 test('record loading includes the relation used by a linked filename field', () => {

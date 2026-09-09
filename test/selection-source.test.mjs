@@ -25,7 +25,7 @@ test('selection polling and record loading include checked IDs without scanning 
   assert.match(source, /activeRecordFields\(\)\.map/);
   assert.match(source, /outputNamePattern \|\| ''\)\.matchAll/);
   assert.match(source, /await readCurrentRecord\(true\); toast\('排版设置已保存'/);
-  assert.match(source, /isDateField\(field\).*displayDateField/s);
+  assert.match(source, /isDisplayField\(field\).*displayFieldValue/s);
   assert.match(source, /getFieldList\(\)\)\.map\(basicFieldName\)/);
   assert.match(source, /Promise\.all\(\[api\.getMeta/);
   assert.match(source, /const generation = \+\+readGeneration/);

@@ -25,7 +25,7 @@ test('XLSX accepts original field names and legacy underscore placeholders toget
 test('rich text fragments keep their source formatting without inserted separators', async () => {
   const xlsx = new PizZip(); xlsx.file('xl/workbook.xml', '<workbook/>'); xlsx.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>{联系信息}</t></is></c></row></sheetData></worksheet>');
   const item = await saveTemplate('rich-text.xlsx', xlsx.generate({ type: 'nodebuffer' })); let output;
-  try { output = await renderTemplate(item.id, [{ 联系信息: [{ type: 'text', text: 'Attn(联系人):Leon LI\n' }, { type: 'text', text: 'TEL(电话):+86 13660195555\n' }, { type: 'text', text: '' }] }]); const sheet = new PizZip(await fs.readFile(outputFile(output.id, output.extension))).file('xl/worksheets/sheet1.xml').asText(); assert.match(sheet, /Attn\(联系人\):Leon LI\nTEL\(电话\):\+86 13660195555\n/); assert.doesNotMatch(sheet, /、/); }
+  try { output = await renderTemplate(item.id, [{ 联系信息: [{ type: 'text', text: 'Attn(联系人):Leon LI\n' }, { type: 'text', text: 'TEL(电话):\u202A+86 13660195555\u202C\n' }, { type: 'text', text: '' }] }]); const sheet = new PizZip(await fs.readFile(outputFile(output.id, output.extension))).file('xl/worksheets/sheet1.xml').asText(); assert.match(sheet, /Attn\(联系人\):Leon LI\nTEL\(电话\):\+86 13660195555\n/); assert.doesNotMatch(sheet, /、/); assert.doesNotMatch(sheet, /202A|202C/); }
   finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
@@ -117,6 +117,21 @@ test('marks XLSX formulas for a full recalculation when opened', async () => {
     const workbook = generated.file('xl/workbook.xml').asText(); const sheet = generated.file('xl/worksheets/sheet1.xml').asText();
     assert.match(workbook, /calcMode="auto"/); assert.match(workbook, /fullCalcOnLoad="1"/); assert.match(workbook, /forceFullCalc="1"/); assert.match(workbook, /calcCompleted="0"/);
     assert.match(sheet, /<f>VLOOKUP\(A1,地址库!A:B,2,0\)<\/f>/); assert.match(sheet, />GYR2<\/t>/);
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
+test('fills cached VLOOKUP results so formula cells map in previews and downloads', async () => {
+  const zip = new PizZip();
+  zip.file('xl/workbook.xml', '<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="发票" sheetId="1" r:id="rId1"/><sheet name="地址表" sheetId="2" r:id="rId2"/></sheets></workbook>');
+  zip.file('xl/_rels/workbook.xml.rels', '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Target="worksheets/sheet2.xml"/></Relationships>');
+  zip.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>{仓库}</t></is></c><c r="B1"><f>VLOOKUP(A1,地址表!D:I,6,0)</f><v></v></c></row></sheetData></worksheet>');
+  zip.file('xl/worksheets/sheet2.xml', '<worksheet><sheetData><row r="1"><c r="D1" t="inlineStr"><is><t>GYR2</t></is></c><c r="I1" t="inlineStr"><is><t>Room 401, Guangzhou</t></is></c></row></sheetData></worksheet>');
+  const item = await saveTemplate('formula-vlookup.xlsx', zip.generate({ type: 'nodebuffer' })); let output;
+  try {
+    output = await renderTemplate(item.id, [{ 仓库: 'GYR2' }]);
+    const generated = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx')));
+    const sheet = generated.file('xl/worksheets/sheet1.xml').asText();
+    assert.match(sheet, /t="str"[^>]*>.*<v>Room 401, Guangzhou<\/v>/);
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 

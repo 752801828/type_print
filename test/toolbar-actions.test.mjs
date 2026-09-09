@@ -31,6 +31,8 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /copyVariable\(button\.dataset\.copyVariable\)/);
   assert.match(source, /class="source-copy-button">复制<\/span>/);
   assert.doesNotMatch(source, /title="复制占位符"/);
+  assert.match(source, /<details class="source-variable-group"/);
+  assert.match(source, /group === '本表字段' \? 'open' : ''/);
   assert.match(source, /ensureLinkedSchemas/);
   assert.match(source, /`\$\{relation\.name\}\.\$\{field\.name\}`/);
   assert.match(html, /aria-autocomplete="list"/);
