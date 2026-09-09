@@ -29,6 +29,7 @@ test('legacy encoding preserves every underscore and takes priority over similar
   assert.equal(scope['🔴发票发货方信息'], '广州公司'); assert.equal(scope['发票发货方信息'], '广州公司'); assert.equal(scope['__发票发货方信息'], '广州公司');
   assert.equal(api.text({ type: 'text', text: '' }), '');
   assert.equal(api.text([{ type: 'text', text: '' }, { type: 'text', text: '有效内容' }]), '有效内容');
+  assert.equal(api.text([{ type: 'text', text: 'Attn(联系人):Leon LI\n' }, { type: 'text', text: 'TEL(电话):+86 13660195555\n' }]), 'Attn(联系人):Leon LI\nTEL(电话):+86 13660195555\n');
 });
 
 test('linked row to print payload uses real price and quantity, never derives a missing price', async () => {

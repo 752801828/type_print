@@ -22,6 +22,13 @@ test('XLSX accepts original field names and legacy underscore placeholders toget
   finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('rich text fragments keep their source formatting without inserted separators', async () => {
+  const xlsx = new PizZip(); xlsx.file('xl/workbook.xml', '<workbook/>'); xlsx.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>{联系信息}</t></is></c></row></sheetData></worksheet>');
+  const item = await saveTemplate('rich-text.xlsx', xlsx.generate({ type: 'nodebuffer' })); let output;
+  try { output = await renderTemplate(item.id, [{ 联系信息: [{ type: 'text', text: 'Attn(联系人):Leon LI\n' }, { type: 'text', text: 'TEL(电话):+86 13660195555\n' }, { type: 'text', text: '' }] }]); const sheet = new PizZip(await fs.readFile(outputFile(output.id, output.extension))).file('xl/worksheets/sheet1.xml').asText(); assert.match(sheet, /Attn\(联系人\):Leon LI\nTEL\(电话\):\+86 13660195555\n/); assert.doesNotMatch(sheet, /、/); }
+  finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('imports Feishu online layout export and preserves structured preview', async () => {
   const source = Buffer.from(JSON.stringify({ name: '在线模板', content: JSON.stringify({ document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 1, content: [{ type: 'paragraph', children: [{ text: '客户：' }, { type: 'variable', name: ['🔵客户名称'] }] }] }] }] }] }] } }) })).toString('base64');
   const item = await saveTemplate('online.txt', Buffer.from(source), { baseId: 'layout-base', tableId: 'layout-table' });
