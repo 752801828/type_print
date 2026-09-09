@@ -50,6 +50,13 @@ test('online layout XLSX export keeps the layout structure and PDF uses a PDFKit
   finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('PDF font discovery accepts TTC fonts and scans common font directories', async () => {
+  const source = await fs.readFile(new URL('../lib/template-store.mjs', import.meta.url), 'utf8');
+  assert.match(source, /\.ttc/);
+  assert.match(source, /readdir\(root, \{ withFileTypes: true, recursive: true \}\)/);
+  assert.match(source, /doc\.font\(font\)/);
+});
+
 test('paginates repeated PDF rows independently of horizontal merged cells', async () => {
   const cell = children => ({ content: [{ type: 'paragraph', children }] });
   const table = {
