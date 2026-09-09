@@ -43,6 +43,13 @@ test('imports Feishu online layout export and preserves structured preview', asy
   } finally { for (const output of outputs) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('online layout XLSX export keeps the layout structure and PDF uses a PDFKit font path', async () => {
+  const source = Buffer.from(JSON.stringify({ content: { document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 4, table: { columns: [{ width: 1 }, { width: 1 }], rows: [{ cells: [{ content: [{ type: 'paragraph', children: [{ text: '标题' }] }] }, { content: [{ type: 'paragraph', children: [{ type: 'variable', name: ['客户'] }] }] }] }] } }] }] }] }] } } })).toString('base64');
+  const item = await saveTemplate('layout-export.txt', Buffer.from(source)); let output;
+  try { output = await renderTemplate(item.id, [{ 客户: '客户A' }], 'xlsx'); const xml = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText(); assert.match(xml, /客户A/); assert.match(xml, /<sheetData>/); }
+  finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('paginates repeated PDF rows independently of horizontal merged cells', async () => {
   const cell = children => ({ content: [{ type: 'paragraph', children }] });
   const table = {
