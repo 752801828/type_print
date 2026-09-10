@@ -50,6 +50,10 @@ test('keeps template import separate from file generation', async () => {
   assert.match(styles, /\.content-toolbar\{position:sticky;top:0/);
   assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);
   assert.match(source, /id="generationProgress"/);
+  assert.match(source, /bitable\?\.bridge\?\.getUserId/);
+  assert.match(source, /feiye-position:\$\{state\.userId\}/);
+  assert.match(source, /localStorage\.setItem/);
+  assert.match(source, /scrollTo\(\{ top: Number\(userMemory\.scrollY\)/);
   assert.ok(source.indexOf('await ensureLinkedSchemas(); drawDependencies();') < source.indexOf('const missing = templateFieldDiagnostics().filter'));
   assert.match(source, /\$\('automaticDownload'\)\.click\(\)/);
   assert.match(source, /\$\('createTemplate'\)\.onclick = \(\) => \$\('templateFile'\)\.click\(\)/);

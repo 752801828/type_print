@@ -30,7 +30,7 @@ test('rich text fragments keep their source formatting without inserted separato
 });
 
 test('imports Feishu online layout export and preserves structured preview', async () => {
-  const source = Buffer.from(JSON.stringify({ name: '在线模板', content: JSON.stringify({ document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 1, content: [{ type: 'paragraph', children: [{ text: '客户：' }, { type: 'variable', name: ['🔵客户名称'] }] }] }] }] }] }] } }) })).toString('base64');
+  const source = Buffer.from(JSON.stringify({ name: '在线模板', content: JSON.stringify({ settings: { fontSize: 9 }, pageSetting: { paddingTop: 5 }, document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 1, marginTop: -50, content: [{ type: 'paragraph', children: [{ text: '客户：' }, { type: 'variable', name: ['🔵客户名称'] }] }] }] }] }] }] } }) })).toString('base64');
   const item = await saveTemplate('online.txt', Buffer.from(source), { baseId: 'layout-base', tableId: 'layout-table' });
   const outputs = [];
   try {
@@ -38,27 +38,27 @@ test('imports Feishu online layout export and preserves structured preview', asy
     const record = { '🔵客户名称': '测试客户', '🔵合同明细': [{ '🔴SKU': 'SKU-彩色', '🔴单价': '12.30' }] };
     const recordPreview = await (await import('../lib/template-store.mjs')).previewRecord(item.id, record); assert.equal(recordPreview.kind, 'html'); assert.match(recordPreview.html, /测试客户/);
     const pdf = await renderTemplate(item.id, [record]); outputs.push(pdf); assert.equal(pdf.extension, 'pdf'); assert.match((await fs.readFile(outputFile(pdf.id, 'pdf'))).subarray(0, 4).toString(), /%PDF/);
-    const word = await renderTemplate(item.id, [record], 'word'); outputs.push(word); assert.equal(word.extension, 'docx'); const wordXml = new PizZip(await fs.readFile(outputFile(word.id, 'docx'))).file('word/document.xml').asText(); assert.match(wordXml, /测试客户/); assert.match(wordXml, /w:sectPr/);
+    const word = await renderTemplate(item.id, [record], 'word'); outputs.push(word); assert.equal(word.extension, 'docx'); const wordXml = new PizZip(await fs.readFile(outputFile(word.id, 'docx'))).file('word/document.xml').asText(); assert.match(wordXml, /测试客户/); assert.match(wordXml, /w:sectPr/); assert.match(wordXml, /w:top="0"/); assert.match(wordXml, /w:sz w:val="18"/);
     const excel = await renderTemplate(item.id, [record], 'xlsx'); outputs.push(excel); assert.equal(excel.extension, 'xlsx'); const excelXml = new PizZip(await fs.readFile(outputFile(excel.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText(); assert.match(excelXml, /测试客户/); assert.match(excelXml, /<sheetData>/);
   } finally { for (const output of outputs) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
 test('online layout XLSX export keeps the layout structure and PDF uses a PDFKit font path', async () => {
-  const source = Buffer.from(JSON.stringify({ content: { document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 4, table: { columns: [{ width: 1 }, { width: 1 }], rows: [{ cells: [{ content: [{ type: 'paragraph', children: [{ text: '标题' }] }] }, { content: [{ type: 'paragraph', children: [{ type: 'variable', name: ['客户'] }] }] }] }] } }] }] }] }] } } })).toString('base64');
+  const source = Buffer.from(JSON.stringify({ content: { pageSetting: { width: 210, height: 297, paddingLeft: 5, paddingRight: 5 }, settings: { fontSize: 9 }, document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 4, table: { columns: [{ width: 1 }, { width: 2 }], merges: [{ rowIndex: 0, colIndex: 0, rowSpan: 1, colSpan: 2 }], rows: [{ cells: [{ background: '#90c3fc', content: [{ type: 'paragraph', align: 'center', children: [{ text: '标题', bold: true, fontSize: '12pt' }] }] }, { content: [{ type: 'paragraph', children: [{ type: 'variable', name: ['客户'] }] }] }] }] } }] }] }] }] } } })).toString('base64');
   const item = await saveTemplate('layout-export.txt', Buffer.from(source)); let output;
-  try { output = await renderTemplate(item.id, [{ 客户: '客户A' }], 'xlsx'); const xml = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText(); assert.match(xml, /客户A/); assert.match(xml, /<sheetData>/); }
+  try { output = await renderTemplate(item.id, [{ 客户: '客户A' }], 'xlsx'); const generated = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))); const xml = generated.file('xl/worksheets/sheet1.xml').asText(); const styles = generated.file('xl/styles.xml').asText(); assert.match(xml, /标题/); assert.match(xml, /<mergeCell ref="A1:B1"/); assert.match(xml, /showGridLines="0"/); assert.match(xml, /fitToWidth="1"/); assert.match(xml, /<cols>/); assert.match(styles, /FF90C3FC/); assert.match(styles, /<b\/>/); assert.match(styles, /<sz val="12"\/>/); }
   finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
 test('online layout Word export preserves columns, tables and all field values in a real DOCX', async () => {
   const cell = children => ({ content: [{ type: 'paragraph', children }] });
-  const source = Buffer.from(JSON.stringify({ content: { pageSetting: { width: 210, height: 297, paddingLeft: 12, paddingRight: 12 }, document: { pages: [{ rows: [{ columns: [{ width: 50, blocks: [{ type: 1, content: [{ type: 'paragraph', children: [{ text: '左侧：' }, { type: 'variable', name: ['客户'] }] }] }] }, { width: 50, blocks: [{ type: 4, table: { columns: [{ width: 1 }, { width: 2 }], rows: [{ cells: [cell([{ text: '编号' }]), cell([{ type: 'variable', name: ['明细', 'SKU'] }])] }], dynamicRows: [{ rowIndex: 0, dataSource: { rootPath: ['明细'] } }] } }] }] }] }] } } })).toString('base64');
+  const source = Buffer.from(JSON.stringify({ content: { settings: { fontSize: 9 }, pageSetting: { width: 210, height: 297, paddingTop: 5, paddingLeft: 12, paddingRight: 12 }, document: { pages: [{ rows: [{ columns: [{ width: 50, blocks: [{ type: 1, marginTop: -50, content: [{ type: 'paragraph', children: [{ text: '左侧：' }, { type: 'variable', name: ['客户'] }] }] }] }, { width: 50, blocks: [{ type: 4, table: { columns: [{ width: 1 }, { width: 2 }], rows: [{ cells: [cell([{ text: '编号' }]), cell([{ type: 'variable', name: ['明细', 'SKU'] }])] }], dynamicRows: [{ rowIndex: 0, dataSource: { rootPath: ['明细'] } }] } }] }] }] }] } } })).toString('base64');
   const item = await saveTemplate('layout-word.txt', Buffer.from(source)); let output;
   try {
     output = await renderTemplate(item.id, [{ 客户: '广州客户', 明细: [{ SKU: 'SKU-001' }, { SKU: 'SKU-002' }] }], 'word');
     assert.equal(output.extension, 'docx');
     const zip = new PizZip(await fs.readFile(outputFile(output.id, 'docx'))); const xml = zip.file('word/document.xml').asText();
-    assert.match(xml, /广州客户/); assert.match(xml, /SKU-001/); assert.match(xml, /SKU-002/); assert.ok((xml.match(/<w:tbl>/g) || []).length >= 2); assert.match(xml, /w:pgSz/);
+    assert.match(xml, /广州客户/); assert.match(xml, /SKU-001/); assert.match(xml, /SKU-002/); assert.ok((xml.match(/<w:tbl>/g) || []).length >= 2); assert.match(xml, /w:pgSz/); assert.match(xml, /w:sz w:val="18"/);
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
@@ -107,6 +107,18 @@ test('expands XLSX shared-string loop rows', async () => {
     assert.match(sheet, /r="A1"[^>]*t="inlineStr"/); assert.match(sheet, />1<\/t>/); assert.match(sheet, /产品A/);
     assert.match(sheet, /r="A2"[^>]*t="inlineStr"/); assert.match(sheet, />2<\/t>/); assert.match(sheet, /产品B/);
     assert.match(sheet, /<row r="3"><c r="A3"/); assert.match(sheet, /dimension ref="A1:C3"/);
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
+test('extends conditional formatting and moves merged footer rows after XLSX loops', async () => {
+  const zip = new PizZip();
+  zip.file('xl/workbook.xml', '<workbook/>');
+  zip.file('xl/worksheets/sheet1.xml', '<worksheet><dimension ref="A1:B2"/><sheetData><row r="1"><c r="A1" t="str"><v>{#明细}{值}{/明细}</v></c></row><row r="2"><c r="A2" t="str"><v>合计</v></c></row></sheetData><mergeCells count="1"><mergeCell ref="A2:B2"/></mergeCells><conditionalFormatting sqref="A1:B1"><cfRule type="expression"><formula>A1&gt;0</formula></cfRule></conditionalFormatting><conditionalFormatting sqref="A2:B2"><cfRule type="expression"><formula>A2&lt;&gt;&quot;&quot;</formula></cfRule></conditionalFormatting></worksheet>');
+  const item = await saveTemplate('conditional-loop.xlsx', zip.generate({ type: 'nodebuffer' })); let output;
+  try {
+    output = await renderTemplate(item.id, [{ 明细: [{ 值: 1 }, { 值: 2 }, { 值: 3 }] }]);
+    const sheet = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText();
+    assert.match(sheet, /sqref="A1:B3"/); assert.match(sheet, /sqref="A4:B4"/); assert.match(sheet, /mergeCell ref="A4:B4"/); assert.match(sheet, /dimension ref="A1:B4"/);
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 

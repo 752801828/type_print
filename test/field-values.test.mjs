@@ -94,6 +94,7 @@ test('record loading includes filename fields and formats Feishu dates', async (
   assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'payee', 'date', 'formula']);
   assert.equal(await api.readField(api.state.fields[2], 'record', { fields: { date: 1788796800000 } }, {}), '2026/09/08');
   assert.equal(await api.readField(api.state.fields[3], 'record', { fields: { formula: null } }, {}), 'Room 401, Guangzhou');
+  assert.equal(await api.readField({ id: 'money', name: '金额', type: 99003 }, 'record', { fields: { money: '￥1,234.50' } }, {}), '1,234.50');
 });
 
 test('record loading includes the relation used by a linked filename field', () => {
