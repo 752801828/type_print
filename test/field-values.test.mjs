@@ -111,7 +111,7 @@ test('field diagnostics accept matching fields from the linked detail table', ()
   api.state.fields = [{ id: 'details', name: '合同明细-采购明细' }];
   api.state.selectedTemplate = { fields: [
     { marker: '#', name: '__合同明细_采购明细' },
-    ...['__开票品名', '单位', '单价_含税___', '总价_含税_'].map(name => ({ marker: '', name }))
+    ...['__开票品名', '单位', '单位', '单价_含税___', '总价_含税_'].map(name => ({ marker: '', name }))
   ] };
   api.linkedSchemaCache.set('details-table', { fields: [
     { id: 'name', name: '开票品名💻' }, { id: 'unit', name: '单位' },
@@ -119,6 +119,7 @@ test('field diagnostics accept matching fields from the linked detail table', ()
   ] });
   const diagnostics = [...api.templateFieldDiagnostics()];
   assert.equal(diagnostics.filter(item => !item.matched).length, 0);
+  assert.equal(diagnostics.filter(item => item.name === '单位').length, 1);
   assert.equal(diagnostics.find(item => item.name === '单价_含税___').fieldId, 'price');
 });
 

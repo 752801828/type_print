@@ -50,6 +50,7 @@ test('keeps template import separate from file generation', async () => {
   assert.match(styles, /\.content-toolbar\{position:sticky;top:0/);
   assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);
   assert.match(source, /id="generationProgress"/);
+  assert.ok(source.indexOf('await ensureLinkedSchemas(); drawDependencies();') < source.indexOf('const missing = templateFieldDiagnostics().filter'));
   assert.match(source, /\$\('automaticDownload'\)\.click\(\)/);
   assert.match(source, /\$\('createTemplate'\)\.onclick = \(\) => \$\('templateFile'\)\.click\(\)/);
   assert.match(source, /\$\('generateTop'\)\.onclick = \(\) => state\.selectedTemplate && state\.records\.length \? \$\('generate'\)\.click\(\) : toast/);
