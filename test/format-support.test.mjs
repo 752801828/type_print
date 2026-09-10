@@ -38,7 +38,7 @@ test('imports Feishu online layout export and preserves structured preview', asy
     const record = { '🔵客户名称': '测试客户', '🔵合同明细': [{ '🔴SKU': 'SKU-彩色', '🔴单价': '12.30' }] };
     const recordPreview = await (await import('../lib/template-store.mjs')).previewRecord(item.id, record); assert.equal(recordPreview.kind, 'html'); assert.match(recordPreview.html, /测试客户/);
     const pdf = await renderTemplate(item.id, [record]); outputs.push(pdf); assert.equal(pdf.extension, 'pdf'); assert.match((await fs.readFile(outputFile(pdf.id, 'pdf'))).subarray(0, 4).toString(), /%PDF/);
-    const word = await renderTemplate(item.id, [record], 'word'); outputs.push(word); assert.equal(word.extension, 'doc'); assert.match((await fs.readFile(outputFile(word.id, 'doc'))).toString('utf16le'), /测试客户/);
+    const word = await renderTemplate(item.id, [record], 'word'); outputs.push(word); assert.equal(word.extension, 'docx'); const wordXml = new PizZip(await fs.readFile(outputFile(word.id, 'docx'))).file('word/document.xml').asText(); assert.match(wordXml, /测试客户/); assert.match(wordXml, /w:sectPr/);
     const excel = await renderTemplate(item.id, [record], 'xlsx'); outputs.push(excel); assert.equal(excel.extension, 'xlsx'); const excelXml = new PizZip(await fs.readFile(outputFile(excel.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText(); assert.match(excelXml, /测试客户/); assert.match(excelXml, /<sheetData>/);
   } finally { for (const output of outputs) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
@@ -50,11 +50,24 @@ test('online layout XLSX export keeps the layout structure and PDF uses a PDFKit
   finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('online layout Word export preserves columns, tables and all field values in a real DOCX', async () => {
+  const cell = children => ({ content: [{ type: 'paragraph', children }] });
+  const source = Buffer.from(JSON.stringify({ content: { pageSetting: { width: 210, height: 297, paddingLeft: 12, paddingRight: 12 }, document: { pages: [{ rows: [{ columns: [{ width: 50, blocks: [{ type: 1, content: [{ type: 'paragraph', children: [{ text: '左侧：' }, { type: 'variable', name: ['客户'] }] }] }] }, { width: 50, blocks: [{ type: 4, table: { columns: [{ width: 1 }, { width: 2 }], rows: [{ cells: [cell([{ text: '编号' }]), cell([{ type: 'variable', name: ['明细', 'SKU'] }])] }], dynamicRows: [{ rowIndex: 0, dataSource: { rootPath: ['明细'] } }] } }] }] }] }] } } })).toString('base64');
+  const item = await saveTemplate('layout-word.txt', Buffer.from(source)); let output;
+  try {
+    output = await renderTemplate(item.id, [{ 客户: '广州客户', 明细: [{ SKU: 'SKU-001' }, { SKU: 'SKU-002' }] }], 'word');
+    assert.equal(output.extension, 'docx');
+    const zip = new PizZip(await fs.readFile(outputFile(output.id, 'docx'))); const xml = zip.file('word/document.xml').asText();
+    assert.match(xml, /广州客户/); assert.match(xml, /SKU-001/); assert.match(xml, /SKU-002/); assert.ok((xml.match(/<w:tbl>/g) || []).length >= 2); assert.match(xml, /w:pgSz/);
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('PDF font discovery accepts TTC fonts and scans common font directories', async () => {
   const source = await fs.readFile(new URL('../lib/template-store.mjs', import.meta.url), 'utf8');
   assert.match(source, /\.ttc/);
   assert.match(source, /readdir\(root, \{ withFileTypes: true, recursive: true \}\)/);
-  assert.match(source, /doc\.font\(font\)/);
+  assert.match(source, /member\?\.postscriptName/);
+  assert.match(source, /doc\.font\(font\.path, font\.family\)/);
 });
 
 test('paginates repeated PDF rows independently of horizontal merged cells', async () => {
