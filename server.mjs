@@ -64,7 +64,7 @@ const server = http.createServer(async (req, res) => {
     if (recordPreviewMatch && req.method === 'POST') { const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8')); const preview = await previewRecord(recordPreviewMatch[1], input.record || {}); if (preview.kind === 'docx') return send(res, 200, preview.bytes, mime['.docx']); return json(res, 200, preview); }
     if (pathname === '/api/generate-docx' && req.method === 'POST') {
       const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8'));
-      return json(res, 201, { output: await renderTemplate(input.templateId, input.records, input.outputFormat) });
+      return json(res, 201, { output: await renderTemplate(input.templateId, input.records, input.outputFormat, Boolean(input.keepFiles)) });
     }
     const outputMatch = pathname.match(/^\/api\/outputs\/([\w-]+)\/download$/);
     if (outputMatch && req.method === 'GET') {

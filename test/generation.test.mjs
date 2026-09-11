@@ -15,13 +15,14 @@ test('renders one DOCX and selected records as ZIP', async () => {
   try {
     await updateTemplate(item.id, { outputNamePattern: '{客户}-合同' });
     const one = await renderTemplate(item.id, [{ 客户: '甲', 状态: '通过', 是否新人: false, items: [{ name: '子项' }] }]);
-    const many = await renderTemplate(item.id, [{ 客户: '甲', items: [{ name: '子项' }] }, { 客户: '乙', items: [] }]);
+    const many = await renderTemplate(item.id, [{ 客户: '甲', items: [{ name: '子项' }] }, { 客户: '乙', items: [] }], '', true);
     assert.equal(one.extension, 'docx'); assert.equal(many.extension, 'zip');
     assert.equal(one.name, '甲-合同.docx'); assert.equal(many.name, '甲-合同-2份.zip');
+    assert.equal(one.files.length, 1); assert.equal(one.files[0].recordIndex, 0); assert.deepEqual(many.files.map(file => file.recordIndex), [0, 1]); assert.ok(many.files.every(file => file.extension === 'docx'));
     const renderedXml = new PizZip(await fs.readFile(outputFile(one.id, one.extension))).file('word/document.xml').asText();
     assert.match(renderedXml, /甲/); assert.match(renderedXml, /1:子项/); assert.match(renderedXml, /条件成立/); assert.match(renderedXml, /旧客户/); assert.doesNotMatch(renderedXml, /undefined/);
     outputs.push(one, many);
-  } finally { for (const output of outputs) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+  } finally { for (const output of outputs) { await fs.rm(outputFile(output.id, output.extension), { force: true }); for (const file of output.files || []) if (file.id !== output.id) await fs.rm(outputFile(file.id, file.extension), { force: true }); } await removeTemplate(item.id); }
 });
 
 test('uses related-table values in the exported filename', async () => {

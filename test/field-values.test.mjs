@@ -9,7 +9,7 @@ const source = await fs.readFile(new URL('../public/app.js', import.meta.url), '
 function frontend() {
   const context = vm.createContext({ location: { pathname: '/feishu', hostname: 'localhost' } });
   vm.runInContext(source.slice(0, source.indexOf("$('createTemplate').onclick")) +
-    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, templateFieldDiagnostics, readSchema, readField, readRawField, variableFields, text };', context);
+    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, attachmentCellValue, templateFieldDiagnostics, readSchema, readField, readRawField, variableFields, text };', context);
   return context.api;
 }
 
@@ -84,6 +84,14 @@ test('record loading keeps only the label and template fields', () => {
   api.state.viewFields = [api.state.fields[0]];
   api.state.selectedTemplate = { fields: [{ marker: '', name: '__供应商' }] };
   assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'needed']);
+  api.state.fields.push({ id: 'attachment', name: '生成文件', type: 17 }); api.state.selectedTemplate.autoUpload = true; api.state.selectedTemplate.outputFieldId = 'attachment';
+  assert.deepEqual([...api.activeRecordFields()].map(field => field.id), ['label', 'needed', 'attachment']);
+});
+
+test('attachment upload appends by default and replaces only when requested', () => {
+  const api = frontend(); const old = { name: '旧文件.pdf', token: 'old' }; const file = { name: '新文件.pdf', size: 12, type: 'application/pdf', lastModified: 123 };
+  assert.deepEqual([...api.attachmentCellValue([old], file, 'new')].map(item => item.token), ['old', 'new']);
+  assert.deepEqual([...api.attachmentCellValue([old], file, 'new', true)].map(item => item.token), ['new']);
 });
 
 test('record loading includes filename fields and formats Feishu dates', async () => {
