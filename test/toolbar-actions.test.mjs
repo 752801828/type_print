@@ -31,7 +31,11 @@ test('keeps template import separate from file generation', async () => {
   assert.match(html, /id="generateTopOptions"/);
   assert.match(html, /id="generateOptions"/);
   assert.match(html, /class="generate-menu" id="generateMenu"/);
-  assert.ok(html.indexOf('id="autoUpload"') > html.indexOf('</dialog>'));
+  assert.match(html, /id="singleOutputFieldId"/);
+  assert.match(html, /id="singleOutputReplace"[^>]*type="checkbox"/);
+  assert.match(html, /id="generateToField">生成并导出到字段/);
+  assert.ok(html.indexOf('id="autoUpload"') < html.indexOf('</dialog>'));
+  assert.ok(html.indexOf('id="singleOutputFieldId"') > html.indexOf('</dialog>'));
   assert.match(html, /id="addNameVariable"[^>]*>＋ 添加变量/);
   assert.match(html, /id="showDataVariables">查看数据源变量/);
   assert.match(html, /id="sourceDrawer"/);
@@ -58,7 +62,9 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /output\.files\?\.length/);
   assert.match(source, /function openGenerateMenu/);
   assert.match(source, /\$\('generateTopOptions'\)\.onclick = openGenerateMenu/);
-  assert.match(source, /\$\('outputFieldId'\)\.onchange = saveGenerateOptions/);
+  assert.match(source, /singleUpload = \{ fieldId: \$\('singleOutputFieldId'\)\.value/);
+  assert.match(source, /const uploadOptions = singleUpload \|\|/);
+  assert.match(source, /uploadGeneratedFiles\(result\.output, uploadOptions\)/);
   assert.match(source, /编辑排版名称|renameTemplateItem/);
   assert.match(styles, /\.content-toolbar\{position:sticky;top:0/);
   assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);
