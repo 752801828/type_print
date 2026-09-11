@@ -28,6 +28,10 @@ test('keeps template import separate from file generation', async () => {
   assert.match(html, /id="autoUpload"[^>]*type="checkbox"/);
   assert.match(html, /id="outputFieldId"/);
   assert.match(html, /id="outputReplace"[^>]*type="checkbox"/);
+  assert.match(html, /id="generateTopOptions"/);
+  assert.match(html, /id="generateOptions"/);
+  assert.match(html, /class="generate-menu" id="generateMenu"/);
+  assert.ok(html.indexOf('id="autoUpload"') > html.indexOf('</dialog>'));
   assert.match(html, /id="addNameVariable"[^>]*>＋ 添加变量/);
   assert.match(html, /id="showDataVariables">查看数据源变量/);
   assert.match(html, /id="sourceDrawer"/);
@@ -46,12 +50,15 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /event\.stopPropagation\(\)/);
   assert.match(html, /<\/label><div id="nameFieldList"/);
   assert.doesNotMatch(source, /settings-template|data-settings-id|data-delete-id/);
-  const styles = await fs.readFile(new URL('../public/styles.css', import.meta.url), 'utf8'); assert.match(styles, /\.library-sidebar\{position:fixed;[^}]*width:250px;[^}]*transform:translateX\(0\)/); assert.match(styles, /\.template-context-menu\{position:fixed/);
+  const styles = await fs.readFile(new URL('../public/styles.css', import.meta.url), 'utf8'); assert.match(styles, /\.library-sidebar\{position:fixed;[^}]*width:250px;[^}]*transform:translateX\(0\)/); assert.match(styles, /\.template-context-menu\{position:fixed/); assert.match(styles, /\.generate-menu\{position:fixed/);
   assert.match(source, /method: 'PATCH'/);
   assert.match(source, /name: \$\('templateName'\)\.value, outputNamePattern/);
   assert.match(source, /batchUploadFile\(downloaded\.map/);
   assert.match(source, /state\.table\.setCellValue\(field\.id, record\.id, attachments\)/);
   assert.match(source, /output\.files\?\.length/);
+  assert.match(source, /function openGenerateMenu/);
+  assert.match(source, /\$\('generateTopOptions'\)\.onclick = openGenerateMenu/);
+  assert.match(source, /\$\('outputFieldId'\)\.onchange = saveGenerateOptions/);
   assert.match(source, /编辑排版名称|renameTemplateItem/);
   assert.match(styles, /\.content-toolbar\{position:sticky;top:0/);
   assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);
