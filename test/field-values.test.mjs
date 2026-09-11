@@ -78,6 +78,19 @@ test('bulk metadata and record values avoid per-cell bridge calls including blan
   }
 });
 
+test('display formatting reuses the field API while preserving numeric decimals', async () => {
+  const api = frontend(); let fieldApiCalls = 0; let displayCalls = 0;
+  const [field] = await api.readSchema({
+    getFieldMetaList: async () => [{ id: 'price', name: '单价', type: 2 }],
+    getFieldById: async () => { fieldApiCalls++; return { getCellString: async () => { displayCalls++; return '151.20'; } }; },
+    getCellValue: async () => 151.199999999999
+  });
+  assert.equal(await api.readField(field, 'record-1', { fields: { price: 151.199999999999 } }, {}), '151.20');
+  assert.equal(await api.readField(field, 'record-2', { fields: { price: 151.199999999999 } }, {}), '151.20');
+  assert.equal(fieldApiCalls, 1);
+  assert.equal(displayCalls, 2);
+});
+
 test('record loading keeps only the label and template fields', () => {
   const api = frontend();
   api.state.fields = [{ id: 'label', name: '采购合同' }, { id: 'needed', name: '供应商' }, ...Array.from({ length: 50 }, (_, index) => ({ id: `unused-${index}`, name: `无关字段${index}` }))];
@@ -103,6 +116,8 @@ test('record loading includes filename fields and formats Feishu dates', async (
   assert.equal(await api.readField(api.state.fields[2], 'record', { fields: { date: 1788796800000 } }, {}), '2026/09/08');
   assert.equal(await api.readField(api.state.fields[3], 'record', { fields: { formula: null } }, {}), 'Room 401, Guangzhou');
   assert.equal(await api.readField({ id: 'money', name: '金额', type: 99003 }, 'record', { fields: { money: '￥1,234.50' } }, {}), '1,234.50');
+  assert.equal(await api.readField({ id: 'price', name: '单价', type: 2, api: { getCellString: async () => '151.20' } }, 'record', { fields: { price: 151.199999999999 } }, {}), '151.20');
+  assert.equal(await api.readField({ id: 'money', name: '金额', type: 99003, api: { getCellString: async () => '￥151.20' } }, 'record', { fields: { money: 151.199999999999 } }, {}), '151.20');
 });
 
 test('record loading includes the relation used by a linked filename field', () => {

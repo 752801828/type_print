@@ -44,10 +44,13 @@ async function basicFieldName(api) { const [meta, apiName] = await Promise.all([
 async function readSchema(table) {
   if (table.getFieldMetaList) {
     const metas = await table.getFieldMetaList();
-    return metas.map(meta => ({ id: String(meta.id), name: meta.name, type: Number(meta.type || 0), relationTableId: String(meta.property?.tableId || ''), api: {
-      getValue: id => table.getCellValue(meta.id, typeof id === 'string' ? id : id.recordId),
-      getCellString: async id => { const field = await table.getFieldById(meta.id); return field.getCellString(id); }
-    } }));
+    return metas.map(meta => {
+      let fieldApi;
+      return { id: String(meta.id), name: meta.name, type: Number(meta.type || 0), relationTableId: String(meta.property?.tableId || ''), api: {
+        getValue: id => table.getCellValue(meta.id, typeof id === 'string' ? id : id.recordId),
+        getCellString: async id => { fieldApi ||= await table.getFieldById(meta.id); return fieldApi.getCellString(id); }
+      } };
+    });
   }
   return Promise.all((await table.getFieldList()).map(basicFieldName));
 }
@@ -60,7 +63,7 @@ const isDateField = field => [5, 1001, 1002].includes(Number(field?.type)) || /�
 // Formula/lookup fields often expose a raw object (or an empty cached value)
 // through getCellValue.  Their display value is available from getCellString,
 // so prefer that representation when reading records for template rendering.
-const isDisplayField = field => isDateField(field) || [19, 20].includes(Number(field?.type));
+const isDisplayField = field => isDateField(field) || [2, 19, 20, 99003].includes(Number(field?.type));
 const printableFieldValue = (field, value) => Number(field?.type) === 99003 && typeof value === 'string' ? value.replace(/\p{Sc}/gu, '').trim() : value;
 const timestampText = (field, value) => { const raw = value && typeof value === 'object' && value.value !== undefined ? value.value : value; const number = Number(raw); if (!Number.isFinite(number) || number < 1000000000) return value ?? ''; const date = new Date(number < 100000000000 ? number * 1000 : number); if (Number.isNaN(date.getTime())) return value ?? ''; const options = /时间/.test(field.name) ? { timeZone: 'Asia/Shanghai', hour12: false } : { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }; return date.toLocaleString('zh-CN', options); };
 async function displayFieldValue(field, recordId, value) { try { const display = await field.api.getCellString(recordId); if (hasCellValue(display)) return display; } catch {} return isDateField(field) ? timestampText(field, value) : value ?? ''; }

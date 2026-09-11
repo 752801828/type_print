@@ -50,6 +50,28 @@ test('online layout XLSX export keeps the layout structure and PDF uses a PDFKit
   finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('online layout XLSX keeps narrow columns, wrapped text visible and merged borders complete', async () => {
+  const cell = children => ({ content: [{ type: 'paragraph', children }] });
+  const source = Buffer.from(JSON.stringify({ content: { settings: { fontSize: 9 }, pageSetting: { width: 210, paddingLeft: 13.5, paddingRight: 13.5 }, document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 4, table: {
+    columns: [{ width: 5.71 }, { width: 25.36 }, { width: 6.28 }, { width: 13.57 }, { width: 10.5 }, { width: 13.97 }, { width: 24.61 }],
+    rows: [
+      { cells: [cell([{ type: 'variable', name: ['长文本'] }]), ...Array.from({ length: 6 }, () => cell([]))] },
+      { cells: [cell([{ text: '完整边框' }]), ...Array.from({ length: 6 }, () => cell([]))] }
+    ],
+    merges: [{ rowIndex: 1, colIndex: 0, rowSpan: 1, colSpan: 7 }]
+  } }] }] }] }] } } })).toString('base64');
+  const item = await saveTemplate('layout-wrapping.txt', Buffer.from(source)); let output;
+  try {
+    output = await renderTemplate(item.id, [{ 长文本: '这是需要自动换行显示的长文本，不能被下一行遮挡。This text must remain visible.' }], 'xlsx');
+    const generated = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))); const xml = generated.file('xl/worksheets/sheet1.xml').asText();
+    const firstWidth = Number(xml.match(/<col min="1" max="1" width="([\d.]+)"/)?.[1]); const rowHeight = Number(xml.match(/<row r="1" ht="([\d.]+)"/)?.[1]);
+    assert.ok(firstWidth < 8, `首列宽度应保留模板比例，实际为 ${firstWidth}`);
+    assert.ok(rowHeight > 30, `长文本行高应自动增大，实际为 ${rowHeight}`);
+    assert.match(xml, /<mergeCell ref="A2:G2"/);
+    for (const column of ['A', 'B', 'C', 'D', 'E', 'F', 'G']) assert.match(xml, new RegExp(`<c r="${column}2"[^>]* s="[1-9]`));
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('online layout Word export preserves columns, tables and all field values in a real DOCX', async () => {
   const cell = children => ({ content: [{ type: 'paragraph', children }] });
   const source = Buffer.from(JSON.stringify({ content: { settings: { fontSize: 9 }, pageSetting: { width: 210, height: 297, paddingTop: 5, paddingLeft: 12, paddingRight: 12 }, document: { pages: [{ rows: [{ columns: [{ width: 50, blocks: [{ type: 1, marginTop: -50, content: [{ type: 'paragraph', children: [{ text: '左侧：' }, { type: 'variable', name: ['客户'] }] }] }] }, { width: 50, blocks: [{ type: 4, table: { columns: [{ width: 1 }, { width: 2 }], rows: [{ cells: [cell([{ text: '编号' }]), cell([{ type: 'variable', name: ['明细', 'SKU'] }])] }], dynamicRows: [{ rowIndex: 0, dataSource: { rootPath: ['明细'] } }] } }] }] }] }] } } })).toString('base64');
