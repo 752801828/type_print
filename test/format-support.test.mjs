@@ -72,6 +72,30 @@ test('online layout XLSX keeps narrow columns, wrapped text visible and merged b
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('online layout XLSX spans full-width paragraphs across a nearby table grid', async () => {
+  const cell = text => ({ content: [{ type: 'paragraph', children: [{ text }] }] });
+  const paragraph = text => ({ type: 1, content: [{ type: 'paragraph', children: [{ text }] }] });
+  const table = { columns: Array.from({ length: 7 }, (_, index) => ({ width: index === 1 ? 20 : 10 })), rows: [{ cells: Array.from({ length: 7 }, (_, index) => cell(`列${index + 1}`)) }] };
+  const source = Buffer.from(JSON.stringify({ content: { settings: { fontSize: 9 }, pageSetting: { width: 210, paddingLeft: 6, paddingRight: 6 }, document: { pages: [{ rows: [
+    { columns: [{ width: 100, blocks: [paragraph('整页宽度合同条款，不能只写入第一列')] }] },
+    { columns: [{ width: 50, blocks: [paragraph('甲方信息')] }, { width: 50, blocks: [paragraph('乙方信息包含较长的公司名称、纳税人识别号、联系地址、联系电话、开户行和银行账号，最终列宽变窄后也必须完整显示')] }] },
+    { columns: [{ width: 100, blocks: [{ type: 4, table }] }] }
+  ] }] } } })).toString('base64');
+  const item = await saveTemplate('mixed-layout.txt', Buffer.from(source)); let output;
+  try {
+    output = await renderTemplate(item.id, [{}], 'xlsx');
+    const xml = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText();
+    assert.match(xml, /<mergeCell ref="A1:G1"/);
+    assert.match(xml, /<mergeCell ref="A2:D2"/);
+    assert.match(xml, /<mergeCell ref="E2:G2"/);
+    const widths = [...xml.matchAll(/<col min="\d+" max="\d+" width="([\d.]+)"/g)].map(match => Number(match[1]));
+    const secondRowHeight = Number(xml.match(/<row r="2" ht="([\d.]+)"/)?.[1]);
+    assert.equal(widths.length, 7);
+    assert.ok(Math.max(...widths) < 30, `单列不应被整页段落撑宽：${widths.join(', ')}`);
+    assert.ok(secondRowHeight > 30, `行高必须按最终列宽计算：${secondRowHeight}`);
+  } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('online layout Word export preserves columns, tables and all field values in a real DOCX', async () => {
   const cell = children => ({ content: [{ type: 'paragraph', children }] });
   const source = Buffer.from(JSON.stringify({ content: { settings: { fontSize: 9 }, pageSetting: { width: 210, height: 297, paddingTop: 5, paddingLeft: 12, paddingRight: 12 }, document: { pages: [{ rows: [{ columns: [{ width: 50, blocks: [{ type: 1, marginTop: -50, content: [{ type: 'paragraph', children: [{ text: '左侧：' }, { type: 'variable', name: ['客户'] }] }] }] }, { width: 50, blocks: [{ type: 4, table: { columns: [{ width: 1 }, { width: 2 }], rows: [{ cells: [cell([{ text: '编号' }]), cell([{ type: 'variable', name: ['明细', 'SKU'] }])] }], dynamicRows: [{ rowIndex: 0, dataSource: { rootPath: ['明细'] } }] } }] }] }] }] } } })).toString('base64');
