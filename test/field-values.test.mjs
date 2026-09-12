@@ -91,6 +91,19 @@ test('display formatting reuses the field API while preserving numeric decimals'
   assert.equal(displayCalls, 2);
 });
 
+test('formatted numeric fields and their underscore aliases stay numeric in XLSX', async () => {
+  const api = frontend();
+  api.state.fields = [{ id: 'total', name: '总数量💻', type: 20 }, { id: 'code', name: '编号', type: 1 }];
+  api.state.selectedTemplate = { fields: [{ name: '总数量__', marker: '' }, { name: '编号', marker: '' }] };
+  const payload = api.recordScope({ fields: { total: '1,234', code: '001234' }, loops: {} });
+  assert.equal(payload['总数量__'].__numeric, true); assert.equal(payload['总数量__'].value, 1234); assert.equal(payload['总数量__'].text, '1,234');
+  assert.equal(payload['编号'], '001234');
+  const zip = new PizZip(); zip.file('xl/workbook.xml', '<workbook/>'); zip.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>{总数量__}</t></is></c><c r="B1" t="inlineStr"><is><t>{编号}</t></is></c></row></sheetData></worksheet>');
+  const item = await saveTemplate('formatted-number.xlsx', zip.generate({ type: 'nodebuffer' })); let output;
+  try { output = await renderTemplate(item.id, [payload]); const xml = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText(); assert.match(xml, /<c r="A1"><v>1234<\/v><\/c>/); assert.match(xml, /<c r="B1" t="inlineStr">[\s\S]*001234/); }
+  finally { await removeTemplate(item.id); if (output) await fs.rm(outputFile(output.id, 'xlsx'), { force: true }); }
+});
+
 test('record loading keeps only the label and template fields', () => {
   const api = frontend();
   api.state.fields = [{ id: 'label', name: '采购合同' }, { id: 'needed', name: '供应商' }, ...Array.from({ length: 50 }, (_, index) => ({ id: `unused-${index}`, name: `无关字段${index}` }))];
