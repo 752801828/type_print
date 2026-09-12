@@ -3,5 +3,6 @@ node_modules/
 data/templates/*
 data/templates.json
 data/outputs/*
+data/usage-events.jsonl
 !data/templates/.gitkeep
 !data/outputs/.gitkeep

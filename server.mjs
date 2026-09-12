@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { listTemplates, saveTemplate, updateTemplate, duplicateTemplate, removeTemplate, renderTemplate, previewTemplate, previewRecord, templateFile, outputFile } from './lib/template-store.mjs';
+import { recordUsage } from './lib/usage-store.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, 'public');
@@ -64,7 +65,10 @@ const server = http.createServer(async (req, res) => {
     if (recordPreviewMatch && req.method === 'POST') { const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8')); const preview = await previewRecord(recordPreviewMatch[1], input.record || {}); if (preview.kind === 'docx') return send(res, 200, preview.bytes, mime['.docx']); return json(res, 200, preview); }
     if (pathname === '/api/generate-docx' && req.method === 'POST') {
       const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8'));
-      return json(res, 201, { output: await renderTemplate(input.templateId, input.records, input.outputFormat, Boolean(input.keepFiles)) });
+      const output = await renderTemplate(input.templateId, input.records, input.outputFormat, Boolean(input.keepFiles));
+      const template = (await listTemplates()).find(item => item.id === input.templateId);
+      await recordUsage({ ...(input.usage || {}), templateId: input.templateId, templateName: template?.name, baseId: template?.baseId || input.usage?.baseId, baseName: template?.baseName || input.usage?.baseName, tableId: template?.tableId || input.usage?.tableId, tableName: template?.tableName || input.usage?.tableName, format: output.extension, records: Array.isArray(input.records) ? input.records.length : 0 }).catch(() => {});
+      return json(res, 201, { output });
     }
     const outputMatch = pathname.match(/^\/api\/outputs\/([\w-]+)\/download$/);
     if (outputMatch && req.method === 'GET') {
