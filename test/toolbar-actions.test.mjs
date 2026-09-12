@@ -72,7 +72,8 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /download="\$\{escapeHtml\(result\.output\.name\)\}"/);
   assert.match(source, /id="generationProgress"/);
   assert.match(source, /bitable\?\.bridge\?\.getUserId/);
-  assert.match(source, /const usage = \{ userId: state\.userId, baseId: state\.context\?\.baseId/);
+  assert.match(source, /const usage = \{ userId: state\.userId, userName: state\.userName, baseId: state\.context\?\.baseId/);
+  assert.match(source, /rememberCurrentUserName\(record\?\.fields\)/);
   assert.match(source, /feiye-position:\$\{state\.userId\}/);
   assert.match(source, /localStorage\.setItem/);
   assert.match(source, /scrollTo\(\{ top: Number\(userMemory\.scrollY\)/);
