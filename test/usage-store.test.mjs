@@ -8,10 +8,11 @@ test('usage tracking hashes users and stores no record values', async () => {
   try { previous = await fs.readFile(usageFile); } catch {}
   try {
     await fs.rm(usageFile, { force: true });
-    const event = await recordUsage({ userId: 'ou_private_user', userName: '王小明', baseId: 'base', baseName: '订单', tableId: 'table', tableName: '发票', format: 'XLSX', records: 3, secret: 'cell value' });
+    const event = await recordUsage({ userId: 'ou_private_user', userName: '王小明', userAvatar: 'https://example.com/avatar.png', baseId: 'base', baseName: '订单', tableId: 'table', tableName: '发票', format: 'XLSX', records: 3, secret: 'cell value' });
     assert.notEqual(event.user, 'ou_private_user');
     assert.equal(event.user.length, 16);
     assert.equal(event.userName, '王小明');
+    assert.equal(event.userAvatar, 'https://example.com/avatar.png');
     assert.equal(event.records, 3);
     const stored = await fs.readFile(usageFile, 'utf8');
     assert.match(stored, /"userId":"ou_private_user"/);
