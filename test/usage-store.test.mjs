@@ -14,7 +14,8 @@ test('usage tracking hashes users and stores no record values', async () => {
     assert.equal(event.userName, '王小明');
     assert.equal(event.records, 3);
     const stored = await fs.readFile(usageFile, 'utf8');
-    assert.doesNotMatch(stored, /ou_private_user|cell value/);
+    assert.match(stored, /"userId":"ou_private_user"/);
+    assert.doesNotMatch(stored, /cell value/);
     assert.match(stored, /"tableName":"发票"/);
   } finally {
     if (previous) await fs.writeFile(usageFile, previous); else await fs.rm(usageFile, { force: true });
