@@ -9,7 +9,7 @@ const source = await fs.readFile(new URL('../public/app.js', import.meta.url), '
 function frontend() {
   const context = vm.createContext({ location: { pathname: '/feishu', hostname: 'localhost' } });
   vm.runInContext(source.slice(0, source.indexOf("$('createTemplate').onclick")) +
-    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, attachmentCellValue, templateFieldDiagnostics, readSchema, readField, readRawField, variableFields, text };', context);
+    '\nthis.api = { state, linkedSchemaCache, legacyPlaceholderName, findTemplateField, readLinkedRows, recordScope, activeRecordFields, attachmentCellValue, templateFieldDiagnostics, readSchema, readField, readRawField, variableFields, text, rememberCurrentUserName };', context);
   return context.api;
 }
 
@@ -102,6 +102,12 @@ test('formatted numeric fields and their underscore aliases stay numeric in XLSX
   const item = await saveTemplate('formatted-number.xlsx', zip.generate({ type: 'nodebuffer' })); let output;
   try { output = await renderTemplate(item.id, [payload]); const xml = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText(); assert.match(xml, /<c r="A1"><v>1234<\/v><\/c>/); assert.match(xml, /<c r="B1" t="inlineStr">[\s\S]*001234/); }
   finally { await removeTemplate(item.id); if (output) await fs.rm(outputFile(output.id, 'xlsx'), { force: true }); }
+});
+
+test('user name detection accepts nested Feishu person values', () => {
+  const api = frontend(); api.state.userId = 'ou_current'; api.state.fields = [{ id: 'creator', name: '创建人', type: 1003 }];
+  api.rememberCurrentUserName({ creator: { value: [{ open_id: 'ou_current', display_name: '李雷' }] } });
+  assert.equal(api.state.userName, '李雷');
 });
 
 test('record loading keeps only the label and template fields', () => {
