@@ -9,7 +9,7 @@ test('keeps template import separate from file generation', async () => {
   assert.match(html, /id="createTemplate">＋　导入模板/);
   assert.ok(html.indexOf('id="createTemplate"') < html.indexOf('id="categoryList"'));
   assert.doesNotMatch(html, /性能扫描|变量指令速查|变量使用方法|进入批量模式/);
-  assert.match(html, /id="moreActions"[^>]*>[\s\S]*class="more-icon">···<\/span><span>更多/);
+  assert.match(html, /id="moreActions"[^>]*>[\s\S]*class="more-icon">⋮<\/span><span>更多/);
   assert.match(html, /id="moreMenu"/);
   assert.match(html, /id="menuBackdrop"/);
   assert.match(html, /id="settingsDialog"/);
@@ -21,6 +21,8 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /row\.oncontextmenu = event => openTemplateContextMenu/);
   assert.match(source, /编辑排版名称|renameTemplateItem/);
   assert.match(source, /duplicateTemplateItem/);
+  assert.match(source, /toggleTemplatePinned/);
+  assert.match(source, /data-pin-id/);
   assert.match(html, /id="moreSettings"[^>]*>[\s\S]*排版设置/);
   assert.match(html, /id="moreDuplicate"[^>]*>[\s\S]*复制模板/);
   assert.match(html, /id="moreDelete"[^>]*>[\s\S]*删除模板/);

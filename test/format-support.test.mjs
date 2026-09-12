@@ -43,6 +43,13 @@ test('imports Feishu online layout export and preserves structured preview', asy
   } finally { for (const output of outputs) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
+test('XLSX numeric placeholders remain numeric cells for spreadsheet selection totals', async () => {
+  const xlsx = new PizZip(); xlsx.file('xl/workbook.xml', '<workbook/>'); xlsx.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>{数量}</t></is></c><c r="B1" t="inlineStr"><is><t>数量：{数量}</t></is></c></row></sheetData></worksheet>');
+  const item = await saveTemplate('numeric-cells.xlsx', xlsx.generate({ type: 'nodebuffer' })); let output;
+  try { output = await renderTemplate(item.id, [{ 数量: 24 }]); const sheet = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText(); assert.match(sheet, /<c r="A1"[^>]*><v>24<\/v><\/c>/); assert.match(sheet, /<c r="B1"[^>]*t="inlineStr"[^>]*>.*数量：24/); }
+  finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
+});
+
 test('online layout XLSX export keeps the layout structure and PDF uses a PDFKit font path', async () => {
   const source = Buffer.from(JSON.stringify({ content: { pageSetting: { width: 210, height: 297, paddingLeft: 5, paddingRight: 5 }, settings: { fontSize: 9 }, document: { pages: [{ rows: [{ columns: [{ width: 100, blocks: [{ type: 4, table: { columns: [{ width: 1 }, { width: 2 }], merges: [{ rowIndex: 0, colIndex: 0, rowSpan: 1, colSpan: 2 }], rows: [{ cells: [{ background: '#90c3fc', content: [{ type: 'paragraph', align: 'center', children: [{ text: '标题', bold: true, fontSize: '12pt' }] }] }, { content: [{ type: 'paragraph', children: [{ type: 'variable', name: ['客户'] }] }] }] }] } }] }] }] }] } } })).toString('base64');
   const item = await saveTemplate('layout-export.txt', Buffer.from(source)); let output;
@@ -164,7 +171,7 @@ test('extends conditional formatting and moves merged footer rows after XLSX loo
   try {
     output = await renderTemplate(item.id, [{ 明细: [{ 值: 1 }, { 值: 2 }, { 值: 3 }] }]);
     const sheet = new PizZip(await fs.readFile(outputFile(output.id, 'xlsx'))).file('xl/worksheets/sheet1.xml').asText();
-    assert.match(sheet, /sqref="A1:B3"/); assert.match(sheet, /sqref="A4:B4"/); assert.match(sheet, /mergeCell ref="A4:B4"/); assert.match(sheet, /dimension ref="A1:B4"/);
+    assert.match(sheet, /sqref="A1:B3"/); assert.match(sheet, /sqref="A4:B4"/); assert.match(sheet, /mergeCell ref="A4:B4"/); assert.match(sheet, /dimension ref="A1:B4"/); assert.match(sheet, /<c r="A1"[^>]*><v>1<\/v><\/c>/);
   } finally { if (output) await fs.rm(outputFile(output.id, output.extension), { force: true }); await removeTemplate(item.id); }
 });
 
