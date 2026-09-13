@@ -32,3 +32,15 @@ test('edits online template content and refreshes fields', async () => {
   try { const updated = JSON.stringify({ content: { document: { pages: [{ rows: [{ blocks: [{ type: 'variable', name: ['客户'] }] }] }] } } }); const result = await updateTemplateContent(item.id, updated); assert.equal((await readTemplateContent(item.id)).content, updated); assert.equal(result.fields.some(field => field.name === '客户'), true); }
   finally { await removeTemplate(item.id); }
 });
+
+test('edits DOCX document XML without replacing the package', async () => {
+  const zip = new PizZip();
+  zip.file('word/document.xml', '<w:document xmlns:w="urn:test"><w:body><w:p><w:r><w:t>{客户}</w:t></w:r></w:p></w:body></w:document>');
+  const item = await saveTemplate('editable.docx', zip.generate({ type: 'nodebuffer' }));
+  try {
+    const xml = (await readTemplateContent(item.id)).content.replace('{客户}', '{供应商}');
+    const result = await updateTemplateContent(item.id, xml);
+    assert.equal((await readTemplateContent(item.id)).content.includes('{供应商}'), true);
+    assert.equal(result.fields.some(field => field.name === '供应商'), true);
+  } finally { await removeTemplate(item.id); }
+});
