@@ -265,6 +265,8 @@ async function openPreview(id) {
     else { $('previewText').hidden = false; $('previewText').textContent = data.content || '此格式无法在浏览器内直接渲染，已显示模板变量信息。'; }
   } catch (error) { await toast(error.message, 'error'); }
 }
+async function openTemplateEditor(id = state.selectedTemplate?.id) { const item = state.templates.find(template => template.id === id); if (!item) return toast('请先选择模板', 'error'); if (!isLayoutTemplate(item)) return toast('只有在线模板支持直接编辑', 'error'); try { const response = await fetch(appUrl(`/api/templates/${id}/content`)); const data = await response.json(); if (!response.ok) throw new Error(data.error || '读取模板失败'); $('templateEditorContent').value = data.content || ''; $('templateEditorDialog').dataset.templateId = id; $('templateEditorDialog').showModal(); $('templateEditorContent').focus(); } catch (error) { toast(error.message, 'error'); } }
+const closeTemplateEditor = () => { if ($('templateEditorDialog').open) $('templateEditorDialog').close(); };
 async function openRecordPreview(record) {
   if (!state.selectedTemplate) return toast('请先选择模板', 'error');
   try {
@@ -374,3 +376,10 @@ const bindSelectionListener = () => { if (selectionBound || !sdk?.bitable?.base)
 addEventListener('scroll', scheduleUserMemory, { passive: true });
 addEventListener('pagehide', saveUserMemory);
 readCurrentRecord();
+const decorateTemplateEditor = () => { const current = state.selectedTemplate; const actions = document.querySelector('#templateList .template-actions'); if (!actions || !isLayoutTemplate(current) || actions.querySelector('.edit-template')) return; const edit = document.createElement('button'); edit.className = 'edit-template'; edit.textContent = '编辑'; edit.onclick = event => { event.stopPropagation(); openTemplateEditor(current.id); }; actions.prepend(edit); };
+new MutationObserver(decorateTemplateEditor).observe($('templateList'), { childList: true, subtree: true });
+decorateTemplateEditor();
+$('closeTemplateEditor').onclick = closeTemplateEditor;
+$('cancelTemplateEditor').onclick = closeTemplateEditor;
+$('templateEditorDialog').onclick = event => { if (event.target === $('templateEditorDialog')) closeTemplateEditor(); };
+$('saveTemplateEditor').onclick = async () => { const dialog = $('templateEditorDialog'); const id = dialog.dataset.templateId; if (!id) return; const button = $('saveTemplateEditor'); button.disabled = true; try { const response = await fetch(appUrl(`/api/templates/${id}/content`), { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: $('templateEditorContent').value }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error || '保存模板失败'); const item = state.templates.find(template => template.id === id); if (item) Object.assign(item, result.template); closeTemplateEditor(); drawTemplates(); toast('在线模板已保存', 'success'); } catch (error) { toast(error.message, 'error'); } finally { button.disabled = false; } };

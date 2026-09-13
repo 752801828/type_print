@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs/promises';
 import PizZip from 'pizzip';
-import { extractFields, saveTemplate, updateTemplate, duplicateTemplate, removeTemplate, templateFile, listTemplates } from '../lib/template-store.mjs';
+import { extractFields, saveTemplate, updateTemplate, updateTemplateContent, readTemplateContent, duplicateTemplate, removeTemplate, templateFile, listTemplates } from '../lib/template-store.mjs';
 
 test('extracts unique DOCX variables and loop markers', () => {
   const zip = new PizZip();
@@ -23,5 +23,12 @@ test('imports the online template attachment target', async () => {
   const source = Buffer.from(JSON.stringify({ content: { settings: { exportFile: { targetFieldId: 'fldAttachment', isReplace: false } }, document: { pages: [{ rows: [] }] } } }));
   const item = await saveTemplate('online-upload.txt', source);
   try { assert.equal(item.autoUpload, true); assert.equal(item.outputFieldId, 'fldAttachment'); assert.equal(item.outputReplace, false); }
+  finally { await removeTemplate(item.id); }
+});
+
+test('edits online template content and refreshes fields', async () => {
+  const original = JSON.stringify({ content: { document: { pages: [{ rows: [] }] } } });
+  const item = await saveTemplate('editable.txt', Buffer.from(original));
+  try { const updated = JSON.stringify({ content: { document: { pages: [{ rows: [{ blocks: [{ type: 'variable', name: ['客户'] }] }] }] } } }); const result = await updateTemplateContent(item.id, updated); assert.equal((await readTemplateContent(item.id)).content, updated); assert.equal(result.fields.some(field => field.name === '客户'), true); }
   finally { await removeTemplate(item.id); }
 });

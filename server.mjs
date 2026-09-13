@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { listTemplates, saveTemplate, updateTemplate, duplicateTemplate, removeTemplate, renderTemplate, previewTemplate, previewRecord, templateFile, outputFile } from './lib/template-store.mjs';
+import { listTemplates, saveTemplate, updateTemplate, updateTemplateContent, readTemplateContent, duplicateTemplate, removeTemplate, renderTemplate, previewTemplate, previewRecord, templateFile, outputFile } from './lib/template-store.mjs';
 import { recordUsage } from './lib/usage-store.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -61,6 +61,9 @@ const server = http.createServer(async (req, res) => {
     }
     const templatePreviewMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/preview$/);
     if (templatePreviewMatch && req.method === 'GET') return json(res, 200, await previewTemplate(templatePreviewMatch[1]));
+    const templateContentMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/content$/);
+    if (templateContentMatch && req.method === 'GET') return json(res, 200, await readTemplateContent(templateContentMatch[1]));
+    if (templateContentMatch && req.method === 'PATCH') { const input = JSON.parse((await body(req, 8 * 1024 * 1024)).toString('utf8')); return json(res, 200, { template: await updateTemplateContent(templateContentMatch[1], input.content) }); }
     const recordPreviewMatch = pathname.match(/^\/api\/templates\/([\w-]+)\/record-preview$/);
     if (recordPreviewMatch && req.method === 'POST') { const input = JSON.parse((await body(req, 2 * 1024 * 1024)).toString('utf8')); const preview = await previewRecord(recordPreviewMatch[1], input.record || {}); if (preview.kind === 'docx') return send(res, 200, preview.bytes, mime['.docx']); return json(res, 200, preview); }
     if (pathname === '/api/generate-docx' && req.method === 'POST') {
