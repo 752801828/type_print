@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>排版打印</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./feishu-doc.css">
 </head>
 <body>
   <div class="app-shell menu-collapsed" id="appShell">
@@ -38,7 +39,7 @@
       <main class="editor-stage"><div class="editor-stage-toolbar"><span>画布</span><small id="editorZoomText">100%</small><button id="editorZoomOut">−</button><input id="editorZoom" type="range" min="50" max="150" value="100"><button id="editorZoomIn">＋</button></div><div class="editor-ruler-x"></div><div class="editor-ruler-y"></div><div id="templateEditorCanvas" class="template-editor-canvas" tabindex="0" aria-label="模板编辑画布"></div></main>
     </div>
   </section>
-  <div class="generate-menu" id="generateMenu" role="dialog" aria-label="本次导出到字段" hidden><div class="generate-menu-title"><strong>本次导出到字段</strong><small>仅本次生效</small></div><label>附件字段<select id="singleOutputFieldId"></select></label><label class="generate-menu-check"><input id="singleOutputReplace" type="checkbox"><span>覆盖字段中已有附件</span></label><button class="generate-menu-action" id="generateToField">生成并导出到字段</button></div>
+  <div class="generate-menu" id="generateMenu" role="dialog" aria-label="生成文件选项" hidden><button class="generate-feishu-doc" id="generateFeishuDoc" type="button"><strong>导出为飞书文档</strong><small id="feishuDocHint">首次授权 · 保存到自己的云盘</small></button><div class="generate-menu-title"><strong>本次导出到字段</strong><small>仅本次生效</small></div><label>附件字段<select id="singleOutputFieldId"></select></label><label class="generate-menu-check"><input id="singleOutputReplace" type="checkbox"><span>覆盖字段中已有附件</span></label><button class="generate-menu-action" id="generateToField">生成并导出到字段</button></div>
   <dialog class="preview-dialog" id="previewDialog"><button class="dialog-close" id="closePreview">×</button><h2 id="previewTitle">模板预览</h2><div id="previewMeta" class="preview-meta"></div><div id="previewDocx" class="docx-preview-host" hidden></div><iframe id="previewFrame" class="preview-frame" hidden></iframe><div id="previewLayout" class="preview-layout" hidden></div><pre id="previewText" class="preview-text" hidden></pre><div id="previewFields" class="preview-fields"></div><a id="downloadPreview" class="preview-download" href="#" download>下载原文件</a></dialog>
   <script src="./vendor/jszip.min.js"></script>
   <script src="./vendor/docx-preview.min.js"></script>

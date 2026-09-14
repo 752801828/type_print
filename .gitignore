@@ -1,4 +1,8 @@
 node_modules/
+data/oauth/
+.env
+.env.*
+!.env.example
 *.log
 data/templates/*
 data/templates.json

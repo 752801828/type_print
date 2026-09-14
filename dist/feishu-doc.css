@@ -1,0 +1,8 @@
+.generate-menu .generate-feishu-doc{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:13px 12px;margin-bottom:16px;border:1px solid #bfd0ea;border-radius:8px;background:#f3f7fd;color:#164b91;text-align:left;cursor:pointer}
+.generate-menu .generate-feishu-doc strong{font-size:14px;line-height:1.5}
+.generate-menu .generate-feishu-doc small{color:#496486;line-height:1.6}
+.generate-menu .generate-feishu-doc:hover{background:#e8f0fc;border-color:#608ed0}
+.generate-menu .generate-feishu-doc:disabled{opacity:.55;cursor:not-allowed}
+.generate-menu .generate-feishu-doc:focus-visible,.feishu-doc-actions button:focus-visible{outline:2px solid #246bfd;outline-offset:2px}
+.feishu-doc-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.feishu-doc-actions button,.result .download-row button{padding:7px 12px;background:#fff;border:1px solid #bcc9dc;border-radius:6px;color:#345479;cursor:pointer}

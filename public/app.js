@@ -13,6 +13,7 @@ let selectionPolling = false;
 let templateLoadKey = '';
 let contextTemplateId = '';
 let singleUpload = null;
+let feishuExportBusy = false;
 let userMemory = null;
 let memoryRestored = false;
 let memoryTimer;
@@ -44,7 +45,7 @@ const isEditableTemplate = item => isLayoutTemplate(item) || ['.docx', '.xlsx'].
 const outputLabel = value => ({ pdf: 'PDF', word: 'WORD', docx: 'DOCX', xlsx: 'XLSX', xls: 'XLS' }[value] || String(value || '文件').toUpperCase());
 const outputMime = extension => ({ pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls: 'application/vnd.ms-excel' }[extension] || 'application/octet-stream');
 const updateOutputOptions = item => { const current = $('outputFormat').value; const extension = String(item?.extension || '.docx').slice(1).toLowerCase(); const options = isLayoutTemplate(item) ? [['pdf','PDF'],['word','Word'],['xlsx','Excel（XLSX）']] : [[extension, outputLabel(extension)]]; $('outputFormat').innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join(''); $('outputFormat').value = item && isLayoutTemplate(item) ? (['pdf','word','xlsx'].includes(current) ? current : 'pdf') : options[0][0]; };
-const updateAction = () => { const enabled = Boolean(state.selectedTemplate && state.records.length); $('generate').disabled = !enabled; $('generateOptions').disabled = !state.selectedTemplate; $('generateTopOptions').disabled = !state.selectedTemplate; $('selectedSummary').textContent = enabled ? `${state.selectedTemplate.name} · ${state.records.length} 条记录` : '选择模板并读取记录后继续'; $('generate').textContent = state.selectedTemplate ? `生成 ${outputLabel($('outputFormat').value)}　→` : '生成文件　→'; };
+const updateAction = () => { const enabled = Boolean(state.selectedTemplate && state.records.length); $('generate').disabled = !enabled || feishuExportBusy; $('generateTop').disabled = feishuExportBusy; $('generateOptions').disabled = !state.selectedTemplate || feishuExportBusy; $('generateTopOptions').disabled = !state.selectedTemplate || feishuExportBusy; $('selectedSummary').textContent = enabled ? `${state.selectedTemplate.name} · ${state.records.length} 条记录` : '选择模板并读取记录后继续'; $('generate').textContent = state.selectedTemplate ? `生成 ${outputLabel($('outputFormat').value)}　→` : '生成文件　→'; };
 const formatStats = item => { const stats = item?.stats || {}; if (stats.pages) return `${stats.pages} 页 · ${item?.fields?.length || 0} 个变量`; return stats.worksheets || stats.rows || stats.cells || stats.formulas ? `工作表: ${stats.worksheets || 0}　行数: ${stats.rows || 0}　单元格数: ${stats.cells || 0}　公式数: ${stats.formulas || 0}` : `${item?.fields?.length || 0} 个变量 · ${String(item?.extension || 'docx').replace('.', '').toUpperCase()}`; };
 
 async function basicFieldName(api) { const [meta, apiName] = await Promise.all([api.getMeta ? api.getMeta().catch(() => null) : null, api.getName ? api.getName().catch(() => '') : '']); const relationTableId = meta?.property?.tableId || meta?.property?.table_id || meta?.property?.relationTableId || meta?.property?.relation_table_id || (api.getTableId ? await api.getTableId().catch(() => '') : ''); return { id: String(api.id || meta?.id || ''), name: String(meta?.name || apiName || api.name || api.id || ''), type: Number(meta?.type ?? api.type ?? 0), api, relationTableId: String(relationTableId || '') }; }
@@ -347,7 +348,7 @@ const hideGenerateMenu = () => { $('generateMenu').hidden = true; $('generateOpt
 function openTemplateContextMenu(event, id) { event.preventDefault(); event.stopPropagation(); contextTemplateId = id; const menu = $('templateContextMenu'); menu.hidden = false; const bounds = menu.getBoundingClientRect(); menu.style.left = `${Math.max(8, Math.min(event.clientX, innerWidth - bounds.width - 8))}px`; menu.style.top = `${Math.max(8, Math.min(event.clientY, innerHeight - bounds.height - 8))}px`; }
 const updateAutoUploadControls = () => { const enabled = $('autoUpload').checked; $('outputFieldId').disabled = !enabled; $('outputReplace').disabled = !enabled; $('outputFieldRow').hidden = !enabled; $('outputReplaceRow').hidden = !enabled; };
 const attachmentOptions = (fields, emptyText = '当前表没有附件字段') => fields.length ? fields.map(field => `<option value="${escapeHtml(field.id)}">${escapeHtml(field.name)}</option>`).join('') : `<option value="">${emptyText}</option>`;
-const drawGenerateMenu = () => { const attachments = state.fields.filter(field => Number(field.type) === 17); const preferred = attachments.some(field => field.id === state.selectedTemplate?.outputFieldId) ? state.selectedTemplate.outputFieldId : attachments[0]?.id || ''; $('singleOutputFieldId').innerHTML = attachmentOptions(attachments); $('singleOutputFieldId').value = preferred; $('singleOutputReplace').checked = false; $('generateToField').disabled = !preferred || !state.records.length; };
+const drawGenerateMenu = () => { const supported = isLayoutTemplate(state.selectedTemplate) || state.selectedTemplate?.extension === '.docx'; $('generateFeishuDoc').disabled = !supported || !state.records.length || feishuExportBusy; $('feishuDocHint').textContent = supported ? '首次授权 · 保存到自己的云盘' : '第一期支持 Word 和在线模板'; const attachments = state.fields.filter(field => Number(field.type) === 17); const preferred = attachments.some(field => field.id === state.selectedTemplate?.outputFieldId) ? state.selectedTemplate.outputFieldId : attachments[0]?.id || ''; $('singleOutputFieldId').innerHTML = attachmentOptions(attachments); $('singleOutputFieldId').value = preferred; $('singleOutputReplace').checked = false; $('generateToField').disabled = !preferred || !state.records.length; };
 function openGenerateMenu(event) { event.preventDefault(); event.stopPropagation(); if (!state.selectedTemplate) return toast('请先导入模板', 'error'); const button = event.currentTarget; const menu = $('generateMenu'); const open = menu.hidden; hideGenerateMenu(); if (!open) return; drawGenerateMenu(); menu.hidden = false; button.setAttribute('aria-expanded', 'true'); const anchor = button.parentElement.getBoundingClientRect(); const bounds = menu.getBoundingClientRect(); menu.style.left = `${Math.max(8, Math.min(anchor.right - bounds.width, innerWidth - bounds.width - 8))}px`; menu.style.top = `${Math.max(8, Math.min(anchor.bottom + 6, innerHeight - bounds.height - 8))}px`; }
 async function openTemplateSettings(id = state.selectedTemplate?.id) { const item = state.templates.find(template => template.id === id); if (!item) return toast('请先选择模板', 'error'); state.selectedTemplate = item; hideMoreMenu(); $('templateName').value = item.name || ''; $('outputNamePattern').value = item.outputNamePattern || ''; const attachments = state.fields.filter(field => Number(field.type) === 17); const valid = attachments.some(field => field.id === item.outputFieldId); $('outputFieldId').innerHTML = attachmentOptions(attachments); $('outputFieldId').value = valid ? item.outputFieldId : attachments[0]?.id || ''; $('autoUpload').checked = Boolean(item.autoUpload && valid); $('autoUpload').disabled = !attachments.length; $('outputReplace').checked = Boolean(item.outputReplace); updateAutoUploadControls(); $('nameFieldList').hidden = true; $('settingsDialog').showModal(); await ensureLinkedSchemas(); if ($('outputNamePattern').value) drawNameFieldSuggestions(); }
 const fieldIcon = field => isDateField(field) ? '▦' : [2, 19, 20].includes(Number(field?.type)) ? '∑' : 'A≡';
@@ -395,6 +396,26 @@ $('autoUpload').onchange = updateAutoUploadControls;
 $('singleOutputFieldId').onchange = () => { $('generateToField').disabled = !$('singleOutputFieldId').value || !state.records.length; };
 $('generateToField').onclick = () => { if (!$('singleOutputFieldId').value || !state.records.length) return toast(state.records.length ? '当前表没有可用的附件字段' : '请先在飞书表格中勾选记录', 'error'); singleUpload = { fieldId: $('singleOutputFieldId').value, replace: $('singleOutputReplace').checked }; hideGenerateMenu(); $('generate').click(); };
 $('generateMenu').onclick = event => event.stopPropagation();
+$('generateFeishuDoc').onclick = async () => {
+  if (feishuExportBusy || !state.selectedTemplate || !state.records.length) return;
+  if (!state.userId) return toast('请等待飞书用户身份加载后重试', 'error');
+  const context = { ...state.context }; const templateId = state.selectedTemplate.id;
+  const records = state.records.map(recordScope);
+  const storageKey = `feiye-doc-session:${state.userId}`;
+  let cached = ''; try { cached = sessionStorage.getItem(storageKey) || ''; } catch {}
+  const popup = cached ? null : window.open('about:blank', 'feiye-document-oauth', 'width=640,height=760');
+  if (popup) popup.opener = null;
+  feishuExportBusy = true; hideGenerateMenu(); updateAction();
+  try {
+    await ensureLinkedSchemas();
+    if (state.selectedTemplate?.id !== templateId || state.context?.tableId !== context.tableId) throw new Error('当前模板或数据表已切换，请重新选择导出');
+    const unmatched = templateFieldDiagnostics().filter(item => !item.matched);
+    if (unmatched.length) throw new Error(`模板有 ${unmatched.length} 个字段未匹配：${unmatched.map(item => item.name).join('、')}`);
+    const { exportFeishuDocument } = await import(appUrl('/feishu-doc.js'));
+    await exportFeishuDocument({ appUrl, escapeHtml, result: $('result'), storageKey, popup, payload: { templateId, records, baseId: context.baseId, tableId: context.tableId } });
+  } catch (error) { popup?.close(); $('result').hidden = false; $('result').className = 'result generation-error'; $('result').innerHTML = `<strong>飞书文档未完成</strong><small>${escapeHtml(error.message)}</small>`; }
+  finally { feishuExportBusy = false; updateAction(); }
+};
 $('saveSettings').onclick = async () => { if (!state.selectedTemplate) return; if ($('autoUpload').checked && !$('outputFieldId').value) return toast('请先选择目标附件字段', 'error'); try { const response = await fetch(appUrl(`/api/templates/${state.selectedTemplate.id}`), { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: $('templateName').value, outputNamePattern: $('outputNamePattern').value, autoUpload: $('autoUpload').checked, outputFieldId: $('outputFieldId').value, outputReplace: $('outputReplace').checked }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error || '保存失败'); Object.assign(state.selectedTemplate, result.template); drawTemplates(); closeTemplateSettings(); await readCurrentRecord(true); toast('排版设置已保存', 'success'); } catch (error) { toast(error.message, 'error'); } };
 $('settingsDialog').onclick = event => { if (event.target === $('settingsDialog')) closeTemplateSettings(); };
 document.addEventListener('click', () => { hideTemplateContextMenu(); hideMoreMenu(); hideGenerateMenu(); });
@@ -410,6 +431,7 @@ async function uploadGeneratedFiles(output, options) {
   return downloaded.length;
 }
 $('generate').onclick = async () => {
+  if (feishuExportBusy) return;
   if (!state.selectedTemplate || !state.records.length) return;
   const uploadOptions = singleUpload || (state.selectedTemplate.autoUpload ? { fieldId: state.selectedTemplate.outputFieldId, replace: state.selectedTemplate.outputReplace } : null); singleUpload = null;
   const button = $('generate'); button.disabled = true; button.textContent = '正在检查字段…';

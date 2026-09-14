@@ -19,6 +19,7 @@ await fs.copyFile(path.join(jszipDir, 'dist', 'jszip.min.js'), path.join(output,
 const indexPath = path.join(output, 'index.html');
 const index = (await fs.readFile(indexPath, 'utf8'))
   .replace('href="/feishu/styles.css"', 'href="./styles.css"')
+  .replace('href="/feishu/feishu-doc.css"', 'href="./feishu-doc.css"')
   .replace('src="/feishu/vendor/jszip.min.js"', 'src="./vendor/jszip.min.js"')
   .replace('src="/feishu/vendor/docx-preview.min.js"', 'src="./vendor/docx-preview.min.js"')
   .replace('src="/feishu/app.js"', 'src="./app.js"');
