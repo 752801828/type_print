@@ -41,6 +41,16 @@ test('keeps template import separate from file generation', async () => {
   assert.match(html, /id="addNameVariable"[^>]*>＋ 添加变量/);
   assert.match(html, /id="showDataVariables">查看数据源变量/);
   assert.match(html, /id="sourceDrawer"/);
+  assert.match(html, /class="editor-workspace" id="templateEditorDialog" hidden/);
+  assert.doesNotMatch(html, /<dialog[^>]+id="templateEditorDialog"|id="cancelTemplateEditor"/);
+  assert.match(html, /data-editor-tab="components"/);
+  assert.match(html, /data-editor-tab="data"/);
+  assert.match(html, /data-editor-tab="global"/);
+  assert.match(html, /data-editor-component="auto-table"/);
+  assert.match(source, /editorHistory|editorUndo|editorRedo/);
+  assert.match(source, /saveEditorTemplate\(true\)/);
+  assert.match(source, /mode === 'docx-xml'.*editableDocx/s);
+  assert.match(source, /\{\$index\+1\}/);
   assert.match(source, /copyVariable\(button\.dataset\.copyVariable\)/);
   assert.match(source, /class="source-copy-button">复制<\/span>/);
   assert.doesNotMatch(source, /title="复制占位符"/);
