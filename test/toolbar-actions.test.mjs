@@ -53,6 +53,11 @@ test('keeps template import separate from file generation', async () => {
   assert.doesNotMatch(source, /prompt\('编辑排版名称'/);
   assert.match(source, /mode === 'docx-xml'.*editableDocx/s);
   assert.match(source, /\{\$index\+1\}/);
+  assert.match(source, /data-editor-col/);
+  assert.match(source, /data-editor-row/);
+  assert.match(source, /event\.shiftKey/);
+  assert.match(source, /event\.ctrlKey \|\| event\.metaKey/);
+  assert.match(source, /editor-range-selected/);
   assert.match(source, /copyVariable\(button\.dataset\.copyVariable\)/);
   assert.match(source, /class="source-copy-button">复制<\/span>/);
   assert.doesNotMatch(source, /title="复制占位符"/);
