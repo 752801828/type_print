@@ -45,10 +45,12 @@ test('keeps template import separate from file generation', async () => {
   assert.doesNotMatch(html, /<dialog[^>]+id="templateEditorDialog"|id="cancelTemplateEditor"/);
   assert.match(html, /data-editor-tab="components"/);
   assert.match(html, /data-editor-tab="data"/);
-  assert.match(html, /data-editor-tab="global"/);
-  assert.match(html, /data-editor-component="auto-table"/);
+  assert.doesNotMatch(html, /data-editor-tab="global"|class="editor-right"|data-editor-component="auto-table"|data-editor-component="line"/);
+  assert.match(html, /data-editor-component="attachment"/);
   assert.match(source, /editorHistory|editorUndo|editorRedo/);
-  assert.match(source, /saveEditorTemplate\(true\)/);
+  assert.doesNotMatch(source, /editorAutoSaveTimer|saveEditorTemplate\(true\)/);
+  assert.match(source, /button\.replaceWith\(input\)/);
+  assert.doesNotMatch(source, /prompt\('编辑排版名称'/);
   assert.match(source, /mode === 'docx-xml'.*editableDocx/s);
   assert.match(source, /\{\$index\+1\}/);
   assert.match(source, /copyVariable\(button\.dataset\.copyVariable\)/);
