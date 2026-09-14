@@ -44,3 +44,15 @@ test('edits DOCX document XML without replacing the package', async () => {
     assert.equal(result.fields.some(field => field.name === '供应商'), true);
   } finally { await removeTemplate(item.id); }
 });
+
+test('edits the first XLSX worksheet XML without replacing the package', async () => {
+  const zip = new PizZip();
+  zip.file('xl/worksheets/sheet1.xml', '<worksheet xmlns="urn:test"><sheetData><row><c><v>{数量}</v></c></row></sheetData></worksheet>');
+  const item = await saveTemplate('editable.xlsx', zip.generate({ type: 'nodebuffer' }));
+  try {
+    const xml = (await readTemplateContent(item.id)).content.replace('{数量}', '{总数}');
+    const result = await updateTemplateContent(item.id, xml);
+    assert.equal((await readTemplateContent(item.id)).content.includes('{总数}'), true);
+    assert.equal(result.fields.some(field => field.name === '总数'), true);
+  } finally { await removeTemplate(item.id); }
+});
