@@ -8,7 +8,7 @@ test('renders one DOCX and selected records as ZIP', async () => {
   const zip = new PizZip();
   zip.file('[Content_Types].xml', `<Types xmlns='http://schemas.openxmlformats.org/package/2006/content-types'><Default Extension='rels' ContentType='application/vnd.openxmlformats-package.relationships+xml'/><Default Extension='xml' ContentType='application/xml'/><Override PartName='/word/document.xml' ContentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'/></Types>`);
   zip.file('_rels/.rels', `<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/relationships'><Relationship Id='rId1' Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument' Target='word/document.xml'/></Relationships>`);
-  zip.file('word/document.xml', `<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:p><w:r><w:t>{客户}</w:t></w:r></w:p><w:p><w:r><w:t>{#items}{$index+1}:{name}{/items}</w:t></w:r></w:p><w:p><w:r><w:t>{#状态=="通过"}条件成立{/}</w:t></w:r></w:p><w:p><w:r><w:t>{#!是否新人}旧客户{/是否新人}</w:t></w:r></w:p><w:p><w:r><w:t>{={{ }}=} {{客户}}</w:t></w:r></w:p><w:sectPr/></w:body></w:document>`);
+  zip.file('word/document.xml', `<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:p><w:r><w:t>{客户}</w:t></w:r></w:p><w:p><w:r><w:t>{#items}[#]:{name}{/items}</w:t></w:r></w:p><w:p><w:r><w:t>{#状态=="通过"}条件成立{/}</w:t></w:r></w:p><w:p><w:r><w:t>{#!是否新人}旧客户{/是否新人}</w:t></w:r></w:p><w:p><w:r><w:t>{={{ }}=} {{客户}}</w:t></w:r></w:p><w:sectPr/></w:body></w:document>`);
   const item = await saveTemplate('smoke.docx', zip.generate({ type: 'nodebuffer' }));
   assert.ok(item.fields.some(field => field.name === '状态' && field.marker === '?')); assert.ok(item.fields.every(field => field.name !== '=' && !field.name.includes('{')));
   const outputs = [];
@@ -20,7 +20,7 @@ test('renders one DOCX and selected records as ZIP', async () => {
     assert.equal(one.name, '甲-合同.docx'); assert.equal(many.name, '甲-合同-2份.zip');
     assert.equal(one.files.length, 1); assert.equal(one.files[0].recordIndex, 0); assert.deepEqual(many.files.map(file => file.recordIndex), [0, 1]); assert.ok(many.files.every(file => file.extension === 'docx'));
     const renderedXml = new PizZip(await fs.readFile(outputFile(one.id, one.extension))).file('word/document.xml').asText();
-    assert.match(renderedXml, /甲/); assert.match(renderedXml, /1:子项/); assert.match(renderedXml, /条件成立/); assert.match(renderedXml, /旧客户/); assert.doesNotMatch(renderedXml, /undefined/);
+    assert.match(renderedXml, /甲/); assert.match(renderedXml, /1:子项/); assert.match(renderedXml, /条件成立/); assert.match(renderedXml, /旧客户/); assert.doesNotMatch(renderedXml, /undefined/); assert.doesNotMatch(renderedXml, /\[#\]/);
     outputs.push(one, many);
   } finally { for (const output of outputs) { await fs.rm(outputFile(output.id, output.extension), { force: true }); for (const file of output.files || []) if (file.id !== output.id) await fs.rm(outputFile(file.id, file.extension), { force: true }); } await removeTemplate(item.id); }
 });
