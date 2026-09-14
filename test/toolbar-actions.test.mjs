@@ -58,6 +58,10 @@ test('keeps template import separate from file generation', async () => {
   assert.match(source, /event\.shiftKey/);
   assert.match(source, /event\.ctrlKey \|\| event\.metaKey/);
   assert.match(source, /editor-range-selected/);
+  assert.match(source, /\['Delete', 'Backspace'\]/);
+  assert.match(source, /\$\('templateEditorFieldSearch'\)\.value = match\[1\]/);
+  assert.match(source, /updateMismatchNotice/);
+  assert.match(html, /id="templateMismatchNotice"/);
   assert.match(source, /copyVariable\(button\.dataset\.copyVariable\)/);
   assert.match(source, /class="source-copy-button">复制<\/span>/);
   assert.doesNotMatch(source, /title="复制占位符"/);
